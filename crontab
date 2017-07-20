@@ -1,0 +1,7 @@
+# m h  dom mon dow   command
+59 10 * * * /home/ubuntu/scrapy/alicia.sh dmoz alicia.shi@gmail.com > /tmp/shz 2> /tmp/shz
+0 19 * * * /home/ubuntu/scrapy/alicia.sh sfc > /tmp/sfc.0 2> /tmp/sfc.0
+0 1 * * * /home/ubuntu/scrapy/alicia.sh sfc > /tmp/sfc.1 2> /tmp/sfc.1
+0 16 * * * /home/ubuntu/scrapy/alicia.sh sfc > /tmp/sfc.2 2> /tmp/sfc.2
+0 16 * * * /home/ubuntu/scrapy/alicia.sh que > /tmp/que.0 2> /tmp/que.0
+#15 22 * * * /home/ubuntu/scrapy/alicia.sh eby romanfanworks@gmail.com > /tmp/rfw 2> /tmp/rfw

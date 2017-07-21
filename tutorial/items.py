@@ -19,4 +19,4 @@ class DmozItem(scrapy.Item):
     link = scrapy.Field()
     desc = scrapy.Field()
     coords = scrapy.Field()
-    listedby = scrapy.Field()
+    attrs = scrapy.Field()

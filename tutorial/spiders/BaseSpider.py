@@ -14,10 +14,14 @@ class BaseSpider(Spider):
         item['desc'] = ' '.join(response.xpath('//section[@id="postingbody"]/text()').extract())
         item['link'] = get_base_url(response)
         item['title'] = response.xpath('//title/text()').extract_first()
-        coords = response.xpath('//div[@class="mapAndAttrs"]/div[@class="mapbox"]/div[@id="map"]')
+        coords = response.xpath('//div[@class="mapbox"]/div[@id="map"]')
         item['coords'] = (coords.xpath('./@data-latitude').extract_first(),
                           coords.xpath('./@data-longitude').extract_first())
-        item['listedby'] = response.xpath('//div[@class="mapAndAttrs"]/p[@class="attrgroup"]/span[contains(.//text(), "listed")]/b/text()').extract_first()
+        item['attrs'] = []
+        for span in response.xpath('//div[@class="mapAndAttrs"]//p[@class="attrgroup"]/span'):
+            item['attrs'].append(' '.join(span.xpath('.//text()').extract()))
+            
+        # item['listedby'] = response.xpath('//div[@class="mapAndAttrs"]/p[@class="attrgroup"]/span[contains(.//text(), "listed")]/b/text()').extract_first()
         # item['title'] = sel.xpath('a/text()').extract()
         # item['link'] = sel.xpath('a/@href').extract()
         # item['desc'] = sel.xpath('text()').extract()

@@ -95,12 +95,19 @@ class SamCorpusReader(CorpusReader):
                 sents.append(self._word_tokenizer.tokenize(s['text'].lower()))
         return sents
 
+def read_desc(stream):
+    line = stream.readline()
+    if not line:
+        return None
+    jso = json.loads(line)
+    return jso['desc'].lower()
+
 def read_link(stream):
     line = stream.readline()
     if not line:
         return None
     jso = json.loads(line)
-    return jso['link'].lower()
+    return jso['link']
 
 def read_coords(stream):
     line = stream.readline()
@@ -109,12 +116,13 @@ def read_coords(stream):
     jso = json.loads(line)
     return jso['coords']
 
-def read_listedby(stream):
+def read_attrs(re_which, stream):
     line = stream.readline()
     if not line:
         return None
     jso = json.loads(line)
-    return jso['listedby']
+    a = [a for a in jso['attrs'] if re.match(re_which, a)]
+    return a[0] if a else None
 
 class Json100CorpusReader(CorpusReader):
 
@@ -220,12 +228,11 @@ class Json100CorpusReader(CorpusReader):
                        for (path, enc, fileid)
                        in self.abspaths(fileids, True, True)])
 
-    def listedby(self, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, self._read_listedby_block,
+    def attrs_matching(self, which, fileids=None, sourced=False):
+        return concat([self.CorpusView(path, self._read_attrs_block_functor(which),
                                        encoding=enc)
                        for (path, enc, fileid)
                        in self.abspaths(fileids, True, True)])
-            
 
     def docs(self, fileids=None, sourced=False):
         res = []
@@ -258,8 +265,11 @@ class Json100CorpusReader(CorpusReader):
     def _read_coords_block(self, stream):
         return [read_coords(stream)]
 
-    def _read_listedby_block(self, stream):
-        return [read_listedby(stream)]
+    def _read_attrs_block_functor(self, which):
+        def f(stream):
+            return [read_attrs(f.which, stream)]
+        f.which = which
+        return f
 
     def _read_doc_block(self, stream):
         doc = []

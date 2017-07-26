@@ -127,7 +127,7 @@ def read_attrs(re_which, stream):
 class Json100CorpusReader(CorpusReader):
 
     CorpusView = StreamBackedCorpusView
-    def __init__(self, root, fileids, 
+    def __init__(self, root, fileids,
                  word_tokenizer=WordPunctTokenizer(),
                  sent_tokenizer=nltk.data.LazyLoader(
                      'tokenizers/punkt/english.pickle'),

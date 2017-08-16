@@ -100,7 +100,7 @@ def read_desc(stream):
     if not line:
         return None
     jso = json.loads(line)
-    return jso['desc'].lower()
+    return jso['desc']
 
 def read_link(stream):
     line = stream.readline()
@@ -273,9 +273,11 @@ class Json100CorpusReader(CorpusReader):
 
     def _read_doc_block(self, stream):
         doc = []
-        for line in stream.readlines():
-            jso = json.loads(line)
-            doc.append(self._word_tokenizer.tokenize(jso['desc'].lower()))
+        while True:
+            desc = read_desc(stream)
+            if desc == None:
+                break
+            doc.append(self._word_tokenizer.tokenize(desc))
         return doc
     
 class BlogCorpusReader(CorpusReader):

@@ -3,7 +3,7 @@
 me=$(whoami)
 BEFORE=20
 TOTALKB=$(df -k --total | tail -1 | awk '{print $2}')
-ACTKB=$(expr $TOTALKB / 8)
+ACTKB=$(expr $TOTALKB / 100)
 DIR="/home/$me/scrapy"
 for name in $(cat $DIR/crontab | egrep -v "^#" | cut -d' ' -f7); do
     MARKER0="$DIR/$name/marker0"

@@ -4,4 +4,5 @@
 #0 16 * * * /home/ubuntu/scrapy/alicia.sh sfc > /tmp/sfc.2 2> /tmp/sfc.2
 0 15 * * * /home/ubuntu/scrapy/alicia.sh que > /tmp/que.0 2> /tmp/que.0
 0 15 * * * /home/ubuntu/scrapy/alicia.sh toy > /tmp/toy.0 2> /tmp/toy.0
+0 15 * * * /home/ubuntu/scrapy/backup.sh > /tmp/backup.0 2> /tmp/backup.0
 #15 22 * * * /home/ubuntu/scrapy/alicia.sh eby romanfanworks@gmail.com > /tmp/rfw 2> /tmp/rfw

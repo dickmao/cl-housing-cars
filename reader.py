@@ -12,6 +12,7 @@ A reader for corpora that consist of plaintext documents.
 """
 
 import codecs
+import re
 
 import nltk.data
 from nltk.tokenize import *
@@ -29,78 +30,15 @@ from StringIO import StringIO
 from os import listdir
 from os.path import join as pathjoin
 
-import re
 
-
-
-class SamCorpusReader(CorpusReader):
-    nonwords = re.compile('[ ,;:.?!]+')
-    CorpusView = StreamBackedCorpusView
-    def __init__(self, root, fileids, 
-                 word_tokenizer=WordPunctTokenizer(),
-                 sent_tokenizer=nltk.data.LazyLoader(
-                     'tokenizers/punkt/english.pickle'),
-                 encoding=None):
-        CorpusReader.__init__(self, root, fileids, encoding)
-        self._word_tokenizer = word_tokenizer
-        self._sent_tokenizer = sent_tokenizer
-
-    def __iter__(self):
-        for f in self._fileids:
-            with self.open(f) as fh:
-                d_gold = json.load(fh)
-                for pd in d_gold:
-                    for s in pd['sentences']:
-                        yield self.nonwords.split(s['text'].lower())
-    
-    def words(self, fileids=None, sourced=False):
-        if sourced:
-            return concat([self.CorpusView(path, self._read_word_block,
-                                           encoding=enc, source=fileid)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        else:
-            return concat([self.CorpusView(path, self._read_word_block,
-                                           encoding=enc)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-
-    def sents(self, fileids=None, sourced=False):
-        if self._sent_tokenizer is None:
-            raise ValueError('No sentence tokenizer for this corpus')
-        if sourced:
-            return concat([self.CorpusView(path, self._read_sent_block,
-                                           encoding=enc, source=fileid)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        else:
-            return concat([self.CorpusView(path, self._read_sent_block,
-                                           encoding=enc)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-
-    def _read_word_block(self, stream):
-        words = []
-        d_gold = json.load(stream)
-        for pd in d_gold:
-            for s in pd['sentences']:
-                words.extend(self._word_tokenizer.tokenize(s['text'].lower()))
-        return words
-    
-    def _read_sent_block(self, stream):
-        sents = []
-        d_gold = json.load(stream)
-        for pd in d_gold:
-            for s in pd['sentences']:
-                sents.append(self._word_tokenizer.tokenize(s['text'].lower()))
-        return sents
-
-def read_desc(stream):
+def read_desc(stream, raw=False):
     line = stream.readline()
     if not line:
         return None
     jso = json.loads(line)
-    return jso['desc']
+    if raw:
+        return jso['desc']
+    return '\n'.join([re.sub(r"([^\n.!? ]\s*)$", r"\1.", line) if re.search(r"([^\n.!? ]\s*)$", line) else line for line in jso['desc'].split('\n')])
 
 def read_link(stream):
     line = stream.readline()
@@ -123,6 +61,7 @@ def read_attrs(re_which, stream):
     jso = json.loads(line)
     a = [a for a in jso['attrs'] if re.match(re_which, a)]
     return a[0] if a else None
+
 
 class Json100CorpusReader(CorpusReader):
 
@@ -152,7 +91,7 @@ class Json100CorpusReader(CorpusReader):
 
     def __iter__(self):
         for doc in self.docs():
-            yield doc
+            yield [word for sent in doc for word in sent]
         # for f in self._fileids:
         #     with self.open(f) as fh:
         #         for line in fh.readlines():
@@ -162,19 +101,19 @@ class Json100CorpusReader(CorpusReader):
     def raw(self, fileids=None, sourced=False):
         """
         @return: the given file(s) as a single string.
-        @rtype: C{str}
+        @rtype: C{list} of C{str}
         """
         if fileids is None: fileids = self._fileids
         elif isinstance(fileids, basestring): fileids = [fileids]
         
-        gc = '';
+        gc = [];
         for f in fileids:
             with self.open(f) as fh:
                 while True:
-                    desc = read_desc(fh)
+                    desc = read_desc(fh, raw=True)
                     if desc == None:
                         break
-                    gc = gc + desc
+                    gc.append(desc)
         return gc
     
     def words(self, fileids=None, sourced=False):
@@ -272,134 +211,5 @@ class Json100CorpusReader(CorpusReader):
         return f
 
     def _read_doc_block(self, stream):
-        doc = []
-        while True:
-            desc = read_desc(stream)
-            if desc == None:
-                break
-            doc.append(self._word_tokenizer.tokenize(desc))
-        return doc
+        return [self._read_sent_block(stream)]
     
-class BlogCorpusReader(CorpusReader):
-
-    CorpusView = StreamBackedCorpusView
-
-    def __iter__(self):
-        for doc in self.docs():
-            yield doc
-        # for f in self._fileids:
-        #     with self.open(f) as fh:
-        #         buf = self._read_xml(fh)
-        #         if len(buf.split()) != 0:
-        #             yield buf.split()
-        
-    def __init__(self, root, fileids, 
-                 word_tokenizer=WordPunctTokenizer(),
-                 sent_tokenizer=nltk.data.LazyLoader(
-                     'tokenizers/punkt/english.pickle'),
-                 encoding=None):
-        CorpusReader.__init__(self, root, fileids, encoding)
-        self._fileids = [fileid for fileid in self._fileids if os.path.getsize(pathjoin(root, fileid)) < 20000]
-        self._word_tokenizer = word_tokenizer
-        self._sent_tokenizer = sent_tokenizer
-        self._parser = etree.XMLParser(remove_blank_text=True,resolve_entities=False)
-
-    def raw(self, fileids=None, sourced=False):
-        """
-        @return: the given file(s) as a single string.
-        @rtype: C{str}
-        """
-        if fileids is None: fileids = self._fileids
-        elif isinstance(fileids, basestring): fileids = [fileids]
-        
-        gc = '';
-        for f in fileids:
-            with self.open(f) as fh:
-                while True:
-                    desc = self._read_xml(fh)
-                    if not desc:
-                        break
-                    gc = gc + desc
-        return gc
-    
-    def words(self, fileids=None, sourced=False):
-        """
-        @return: the given file(s) as a list of words
-            and punctuation symbols.
-        @rtype: C{list} of C{str}
-        """
-        # Once we require Python 2.5, use source=(fileid if sourced else None)
-        if sourced:
-            return concat([self.CorpusView(path, self._read_word_block,
-                                           encoding=enc, source=fileid)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        else:
-            return concat([self.CorpusView(path, self._read_word_block,
-                                           encoding=enc)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-            
-    
-    def sents(self, fileids=None, sourced=False):
-        """
-        @return: the given file(s) as a list of
-            sentences or utterances, each encoded as a list of word
-            strings.
-        @rtype: C{list} of (C{list} of C{str})
-        """
-        if self._sent_tokenizer is None:
-            raise ValueError('No sentence tokenizer for this corpus')
-        if sourced:
-            return concat([self.CorpusView(path, self._read_sent_block,
-                                           encoding=enc, source=fileid)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        else:
-            return concat([self.CorpusView(path, self._read_sent_block,
-                                           encoding=enc)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-
-    def docs(self, fileids=None, sourced=False):
-        res = []
-        if sourced:
-            res = concat([self.CorpusView(path, self._read_doc_block,
-                                          encoding=enc, source=fileid)
-                          for (path, enc, fileid)
-                          in self.abspaths(fileids, True, True)])
-        else:
-            res = concat([self.CorpusView(path, self._read_doc_block,
-                                          encoding=enc)
-                          for (path, enc, fileid)
-                          in self.abspaths(fileids, True, True)])
-        return [x for x in res if x != []]
-            
-    def _read_doc_block(self, stream):
-        doc = self._word_tokenizer.tokenize(self._read_xml(stream))
-        return [doc]
-
-    def _read_word_block(self, stream):
-        words = []
-        buf = self._read_xml(stream)
-        words.extend(self._word_tokenizer.tokenize(buf))
-        return words
-    
-    def _read_sent_block(self, stream):
-        sents = []
-        buf = self._read_xml(stream)
-        sents.extend([self._word_tokenizer.tokenize(sent)
-                      for sent in self._sent_tokenizer.tokenize(buf)])
-        return sents
-
-    def _read_xml(self, stream):
-        what = ''
-        x = ''.join(['<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd" >\n'] + stream.readlines())
-        x = re.sub(r'&(?!\w+;)', '&amp;', x)
-        try:
-            r = etree.parse(StringIO(x),self._parser).getroot()
-        except XMLSyntaxError:
-            pass
-        else:
-            what = ''.join([post.text.encode('ascii', 'ignore') for post in r.findall('post')])
-        return what.lower()

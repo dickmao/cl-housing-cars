@@ -31,12 +31,12 @@ from os import listdir
 from os.path import join as pathjoin
 
 
-def read_desc(stream, raw=False):
+def read_desc(stream, newlines_are_periods=False):
     line = stream.readline()
     if not line:
         return None
     jso = json.loads(line)
-    if raw:
+    if not newlines_are_periods:
         return jso['desc']
     return '\n'.join([re.sub(r"([^\n.!? ]\s*)$", r"\1.", line) if re.search(r"([^\n.!? ]\s*)$", line) else line for line in jso['desc'].split('\n')])
 
@@ -98,7 +98,7 @@ class Json100CorpusReader(CorpusReader):
         #             jso = json.loads(line)
         #             yield jso['desc'].lower().split()
 
-    def raw(self, fileids=None, sourced=False):
+    def raw(self, fileids=None, sourced=False, newlines_are_periods=False):
         """
         @return: the given file(s) as a single string.
         @rtype: C{list} of C{str}
@@ -110,7 +110,25 @@ class Json100CorpusReader(CorpusReader):
         for f in fileids:
             with self.open(f) as fh:
                 while True:
-                    desc = read_desc(fh, raw=True)
+                    desc = read_desc(fh, newlines_are_periods)
+                    if desc == None:
+                        break
+                    gc.append(desc)
+        return gc
+    
+    def newlines_are_periods(self, fileids=None, sourced=False):
+        """
+        @return: the given file(s) as a single string.
+        @rtype: C{list} of C{str}
+        """
+        if fileids is None: fileids = self._fileids
+        elif isinstance(fileids, basestring): fileids = [fileids]
+        
+        gc = [];
+        for f in fileids:
+            with self.open(f) as fh:
+                while True:
+                    desc = read_desc(fh)
                     if desc == None:
                         break
                     gc.append(desc)

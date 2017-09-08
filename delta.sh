@@ -6,7 +6,7 @@ export PATH=/home/${me}/.local/bin:/home/${me}/.local/bin:/home/${me}/.go/bin:/u
 DIR="/home/$me/scrapy/${name}"
 MARKER0="$DIR/marker0"
 if [ -e "$MARKER0" ] ; then
-    file=$(find -L $DIR -type f ! -newermt @$(date -d "1970-01-01 UTC +$(stat -Lc %Y ${MARKER0}) seconds - 23 hours" +%s) -printf '%Ts\t%p\n' | sort -nr | cut -f2 | head -1)
+    file=$(find -L $DIR -regex .*\.json ! -newermt @$(date -d "1970-01-01 UTC +$(stat -Lc %Y ${MARKER0}) seconds - 23 hours" +%s) -printf '%Ts\t%p\n' | sort -nr | cut -f2 | head -1)
     if [ ! -z $file ]; then
 	mark=$(cat $file | perl -ne '/\/(\d+)\.html/; print "$1\n"; '|sort -nr | head -1)
 	if [ ! -z $mark ]; then

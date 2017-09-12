@@ -11,7 +11,7 @@ if [ $? == 0 ]; then
     if [ -e $name/marker1 ]; then 
         mv $name/marker1 $name/marker0
     fi
-    if [ -s "$name/digest" ]; then
+    if [ -s "$name/digest" -a $me == 'ubuntu' ]; then
         DATE=`date '+%Y%m%d'` sh -c "mailx -s \"digest \$DATE\" -r \"Daily Digest <no-reply@shunyet.com>\" -q $name/digest $mailto rchiang@cs.stonybrook.edu </dev/null"
     fi
 fi

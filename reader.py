@@ -30,7 +30,6 @@ from StringIO import StringIO
 from os import listdir
 from os.path import join as pathjoin
 
-
 def read_desc(stream, newlines_are_periods=False):
     line = stream.readline()
     if not line:
@@ -46,6 +45,13 @@ def read_link(stream):
         return None
     jso = json.loads(line)
     return jso['link']
+
+def read_price(stream):
+    line = stream.readline()
+    if not line:
+        return None
+    jso = json.loads(line)
+    return jso['price']
 
 def read_coords(stream):
     line = stream.readline()
@@ -179,6 +185,12 @@ class Json100CorpusReader(CorpusReader):
                        for (path, enc, fileid)
                        in self.abspaths(fileids, True, True)])
 
+    def prices(self, fileids=None, sourced=False):
+        return concat([self.CorpusView(path, self._read_price_block,
+                                       encoding=enc)
+                       for (path, enc, fileid)
+                       in self.abspaths(fileids, True, True)])
+
     def coords(self, fileids=None, sourced=False):
         return concat([self.CorpusView(path, self._read_coords_block,
                                        encoding=enc)
@@ -218,6 +230,9 @@ class Json100CorpusReader(CorpusReader):
 
     def _read_link_block(self, stream):
         return [read_link(stream)]
+
+    def _read_price_block(self, stream):
+        return [read_price(stream)]
 
     def _read_coords_block(self, stream):
         return [read_coords(stream)]

@@ -14,6 +14,7 @@ class BaseSpider(Spider):
         item['desc'] = ' '.join(response.xpath('//section[@id="postingbody"]/text()').extract())
         item['link'] = get_base_url(response)
         item['title'] = response.xpath('//title/text()').extract_first()
+        item['price'] = response.xpath('//section[@class="body"]//span[@class="price"]/text()').extract_first()
         coords = response.xpath('//div[@class="mapbox"]/div[@id="map"]')
         item['coords'] = (coords.xpath('./@data-latitude').extract_first(),
                           coords.xpath('./@data-longitude').extract_first())

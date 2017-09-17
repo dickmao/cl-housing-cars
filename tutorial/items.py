@@ -16,6 +16,7 @@ class TutorialItem(scrapy.Item):
 
 class DmozItem(scrapy.Item):
     title = scrapy.Field()
+    price = scrapy.Field()
     link = scrapy.Field()
     desc = scrapy.Field()
     coords = scrapy.Field()

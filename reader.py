@@ -39,26 +39,22 @@ def read_desc(stream, newlines_are_periods=False):
         return jso['desc']
     return '\n'.join([re.sub(r"([^\n.!? ]\s*)$", r"\1.", line) if re.search(r"([^\n.!? ]\s*)$", line) else line for line in jso['desc'].split('\n')])
 
-def read_link(stream):
+def read_x(stream, x):
     line = stream.readline()
     if not line:
         return None
     jso = json.loads(line)
-    return jso['link']
+    return jso[x]
 
-def read_price(stream):
+def read_X(stream, X):
     line = stream.readline()
     if not line:
         return None
     jso = json.loads(line)
-    return jso['price']
-
-def read_coords(stream):
-    line = stream.readline()
-    if not line:
-        return None
-    jso = json.loads(line)
-    return jso['coords']
+    result = dict()
+    for f in X:
+        result[f] = jso[f]
+    return result
 
 def read_attrs(re_which, stream):
     line = stream.readline()
@@ -179,20 +175,14 @@ class Json100CorpusReader(CorpusReader):
                            for (path, enc, fileid)
                            in self.abspaths(fileids, True, True)])
 
-    def links(self, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, self._read_link_block,
+    def field(self, x, fileids=None, sourced=False):
+        return concat([self.CorpusView(path, block_reader=lambda stream: [read_x(stream, x)],
                                        encoding=enc)
                        for (path, enc, fileid)
                        in self.abspaths(fileids, True, True)])
 
-    def prices(self, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, self._read_price_block,
-                                       encoding=enc)
-                       for (path, enc, fileid)
-                       in self.abspaths(fileids, True, True)])
-
-    def coords(self, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, self._read_coords_block,
+    def fields(self, vOfw, fileids=None, sourced=False):
+        return concat([self.CorpusView(path, block_reader=lambda stream: [read_X(stream, vOfw)],
                                        encoding=enc)
                        for (path, enc, fileid)
                        in self.abspaths(fileids, True, True)])
@@ -227,15 +217,6 @@ class Json100CorpusReader(CorpusReader):
         sents.extend([self._word_tokenizer.tokenize(sent)
                       for sent in self._sent_tokenizer.tokenize(read_desc(stream))])
         return sents
-
-    def _read_link_block(self, stream):
-        return [read_link(stream)]
-
-    def _read_price_block(self, stream):
-        return [read_price(stream)]
-
-    def _read_coords_block(self, stream):
-        return [read_coords(stream)]
 
     def _read_attrs_block_functor(self, which):
         def f(stream):

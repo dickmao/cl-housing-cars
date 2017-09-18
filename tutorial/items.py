@@ -21,3 +21,4 @@ class DmozItem(scrapy.Item):
     desc = scrapy.Field()
     coords = scrapy.Field()
     attrs = scrapy.Field()
+    image_urls = scrapy.Field()

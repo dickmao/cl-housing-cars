@@ -26,6 +26,9 @@ class BaseSpider(Spider):
         # item['title'] = sel.xpath('a/text()').extract()
         # item['link'] = sel.xpath('a/@href').extract()
         # item['desc'] = sel.xpath('text()').extract()
+        item['image_urls'] = []
+        for href in response.xpath('//a[@class="thumb"]/@href'):
+            item['image_urls'].append(href.extract())
         if item['desc']:
             yield item
 

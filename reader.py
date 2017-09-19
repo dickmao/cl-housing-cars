@@ -48,6 +48,12 @@ def read_x(stream, x):
         return None
     return jso[x]
 
+def read_price(stream):
+    sprice = read_x(stream, 'price')
+    if sprice is not None:
+        return int(re.findall(r'(\d+)', sprice)[-1])
+    return None
+    
 def read_X(stream, X):
     line = stream.readline()
     if not line:
@@ -176,6 +182,12 @@ class Json100CorpusReader(CorpusReader):
                                            encoding=enc)
                            for (path, enc, fileid)
                            in self.abspaths(fileids, True, True)])
+
+    def price(self, fileids=None, sourced=False):
+        return concat([self.CorpusView(path, block_reader=lambda stream: [read_price(stream)],
+                                       encoding=enc)
+                       for (path, enc, fileid)
+                       in self.abspaths(fileids, True, True)])
 
     def field(self, x, fileids=None, sourced=False):
         return concat([self.CorpusView(path, block_reader=lambda stream: [read_x(stream, x)],

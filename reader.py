@@ -44,6 +44,8 @@ def read_x(stream, x):
     if not line:
         return None
     jso = json.loads(line)
+    if x not in jso:
+        return None
     return jso[x]
 
 def read_X(stream, X):

@@ -8,7 +8,7 @@ from sys import exit
 class BaseSpider(Spider):
     allowed_domains = ["craigslist.org"]
     start_urls = []
-
+    
     def parse_text(self, response):
         item = DmozItem()
         item['desc'] = ' '.join(response.xpath('//section[@id="postingbody"]/text()').extract())
@@ -33,6 +33,22 @@ class BaseSpider(Spider):
             yield item
 
     def parse(self, response):
+        request = get_base_url(response)
+        nabes = set()
+        for input in response.xpath('//input[@name="nh"]'):
+            nabes.add(input.xpath('./@value').extract_first())
+        if nabes:
+            parsed = urlparse(request)
+            for nabe in nabes:
+                query = parse_qs(parsed.query)
+                query["nh"] = nabe
+                # _replace is part of namedtuple public API, says Nigel Tufnel
+                parsed = parsed._replace(query=urlencode(query))
+                yield Request(urlunparse(parsed), self.parse_link)
+        else:
+            yield Request(request, self.parse_link)
+                
+    def parse_link(self, response):
         stopat = response.xpath('//h4[@class="ban nearby"]/following-sibling::li//@data-pid').extract_first()
         for rrow in response.xpath('//div[@class="content"]//li[@class="result-row"]'):
             pid = rrow.xpath('.//@data-pid').extract_first()
@@ -44,4 +60,4 @@ class BaseSpider(Spider):
         next_page = response.xpath('//a[@class="button next"]//@href').extract_first()
         if next_page:
             url = response.urljoin(next_page)
-            yield Request(url, self.parse)
+            yield Request(url, self.parse_link)

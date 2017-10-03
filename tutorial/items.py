@@ -9,11 +9,6 @@ import scrapy
 from scrapy.loader import ItemLoader
 from scrapy.loader.processors import Join
 
-class TutorialItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
-
 class DmozItem(scrapy.Item):
     title = scrapy.Field()
     price = scrapy.Field()
@@ -21,4 +16,6 @@ class DmozItem(scrapy.Item):
     desc = scrapy.Field()
     coords = scrapy.Field()
     attrs = scrapy.Field()
+    posted = scrapy.Field()
+    updated = scrapy.Field()
     image_urls = scrapy.Field()

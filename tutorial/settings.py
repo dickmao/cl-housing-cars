@@ -15,7 +15,8 @@ NEWSPIDER_MODULE = 'tutorial.spiders'
 DOWNLOAD_HANDLERS = {
   's3': None,
 }
-FEED_URI = '{}/scrapy/%(name)s/%(name)s.%(time)s.json'.format(os.path.expanduser('~'))
+FEED_URI = '{}/scrapy/%(name)s/%(name)s.%(timestamp)s.json'.format(os.path.expanduser('~'))
+MARKER = '{}/scrapy/%(name)s/Marker.%(timestamp)s.json'.format(os.path.expanduser('~'))
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'

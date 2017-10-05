@@ -10,7 +10,7 @@ from datetime import datetime
 from pytz import utc
 from collections import Callable
 import dateutil.parser
-import json, glob, os, threading
+import json, glob, os, threading, re
 
 # Cole Maclean
 class DateTimeEncoder(json.JSONEncoder):
@@ -59,6 +59,7 @@ class CallableParseText(Callable):
             item['desc'] = ' '.join(response.xpath('//section[@id="postingbody"]/text()').extract())
             item['link'] = get_base_url(response)
             item['title'] = response.xpath('//title/text()').extract_first()
+            item['id'] = re.findall(r"(\d+)", response.xpath('//div[@class="postinginfos"]//p[@class="postinginfo"]/text()').extract_first())[-1]
             item['price'] = response.xpath('//section[@class="body"]//span[@class="price"]/text()').extract_first()
             coords = response.xpath('//div[@class="mapbox"]/div[@id="map"]')
             item['coords'] = (coords.xpath('./@data-latitude').extract_first(),

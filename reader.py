@@ -30,6 +30,25 @@ from StringIO import StringIO
 from os import listdir
 from os.path import join as pathjoin
 
+class SkippingCorpusView(StreamBackedCorpusView):
+    def __init__(self, fileid, unique, block_reader, startpos=0, encoding='utf8'):
+        super(SkippingCorpusView, self).__init__(fileid, block_reader=None, startpos=startpos, encoding=encoding)
+        self._unique = unique
+        self._block_reader = block_reader
+        self._skipped = 0
+        self._tell = -1
+
+    def read_block(self, stream):
+        if self._tell != stream.tell():
+            self._skipped = 0
+            
+        tokens = self._block_reader(self._stream)
+        self._tell = stream.tell()
+        if not self._unique[self._current_blocknum + self._skipped]:
+            self._skipped += 1
+            tokens = []
+        return tokens
+
 def read_desc(stream, newlines_are_periods=True):
     line = stream.readline()
     if not line:
@@ -48,12 +67,6 @@ def read_x(stream, x):
         return None
     return jso[x]
 
-def read_price(stream):
-    sprice = read_x(stream, 'price')
-    if sprice is not None:
-        return int(re.findall(r'(\d+)', sprice)[-1])
-    return None
-    
 def read_X(stream, X):
     line = stream.readline()
     if not line:
@@ -64,6 +77,12 @@ def read_X(stream, X):
         result[f] = jso[f]
     return result
 
+def read_price(stream):
+    sprice = read_x(stream, 'price')
+    if sprice is not None:
+        return int(re.findall(r'(\d+)', sprice)[-1])
+    return None
+    
 def read_attrs(re_which, stream):
     line = stream.readline()
     if not line:
@@ -75,8 +94,8 @@ def read_attrs(re_which, stream):
 
 class Json100CorpusReader(CorpusReader):
 
-    CorpusView = StreamBackedCorpusView
-    def __init__(self, root, fileids,
+    CorpusView = SkippingCorpusView
+    def __init__(self, root, fileids, dedupe=None,
                  word_tokenizer=WordPunctTokenizer(),
                  sent_tokenizer=nltk.data.LazyLoader(
                      'tokenizers/punkt/english.pickle'),
@@ -96,6 +115,18 @@ class Json100CorpusReader(CorpusReader):
             into words.
         """
         CorpusReader.__init__(self, root, fileids, encoding)
+        self._unique = dict()
+        tmp = set()
+        for f in self._fileids:
+            self._unique[f] = []
+            with self.open(f) as fh:
+                while True:
+                    x = read_x(fh, dedupe) if dedupe else fh.readline()
+                    if not x:
+                        break
+                    self._unique[f].append(x not in tmp if dedupe else True)
+                    tmp.add(x)
+                        
         self._word_tokenizer = word_tokenizer
         self._sent_tokenizer = sent_tokenizer
 
@@ -108,44 +139,34 @@ class Json100CorpusReader(CorpusReader):
         #             jso = json.loads(line)
         #             yield jso['desc'].lower().split()
 
-    def raw(self, fileids=None, sourced=False, newlines_are_periods=False):
+    def raw(self, newlines_are_periods=False):
         """
         @return: the given file(s) as a single string.
         @rtype: C{list} of C{str}
         """
-        if fileids is None: fileids = self._fileids
-        elif isinstance(fileids, basestring): fileids = [fileids]
-        
         gc = [];
-        for f in fileids:
+        for f in self._fileids:
             with self.open(f) as fh:
-                while True:
+                for keep in self._unique[f]:
                     desc = read_desc(fh, newlines_are_periods)
-                    if desc == None:
-                        break
-                    gc.append(desc)
+                    if keep:
+                        gc.append(desc)
         return gc
     
-    def words(self, fileids=None, sourced=False):
+    def words(self):
         """
         @return: the given file(s) as a list of words
             and punctuation symbols.
         @rtype: C{list} of C{str}
         """
-        # Once we require Python 2.5, use source=(fileid if sourced else None)
-        if sourced:
-            return concat([self.CorpusView(path, self._read_word_block,
-                                           encoding=enc, source=fileid)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        else:
-            return concat([self.CorpusView(path, self._read_word_block,
-                                           encoding=enc)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       self._read_word_block, \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
             
     
-    def sents(self, fileids=None, sourced=False):
+    def sents(self):
         """
         @return: the given file(s) as a list of
             sentences or utterances, each encoded as a list of word
@@ -154,54 +175,46 @@ class Json100CorpusReader(CorpusReader):
         """
         if self._sent_tokenizer is None:
             raise ValueError('No sentence tokenizer for this corpus')
-        if sourced:
-            return concat([self.CorpusView(path, self._read_sent_block,
-                                           encoding=enc, source=fileid)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        else:
-            return concat([self.CorpusView(path, self._read_sent_block,
-                                           encoding=enc)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       self._read_sent_block, \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
 
-    def price(self, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, block_reader=lambda stream: [read_price(stream)],
-                                       encoding=enc)
-                       for (path, enc, fileid)
-                       in self.abspaths(fileids, True, True)])
+    def price(self):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       lambda stream: [read_price(stream)], \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
 
-    def field(self, x, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, block_reader=lambda stream: [read_x(stream, x)],
-                                       encoding=enc)
-                       for (path, enc, fileid)
-                       in self.abspaths(fileids, True, True)])
+    def field(self, x):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       lambda stream: [read_x(stream, x)], \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
 
-    def fields(self, vOfw, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, block_reader=lambda stream: [read_X(stream, vOfw)],
-                                       encoding=enc)
-                       for (path, enc, fileid)
-                       in self.abspaths(fileids, True, True)])
+    def fields(self, vOfw):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       lambda stream: [read_X(stream, vOfw)], \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
 
-    def attrs_matching(self, which, fileids=None, sourced=False):
-        return concat([self.CorpusView(path, self._read_attrs_block_functor(which),
-                                       encoding=enc)
-                       for (path, enc, fileid)
-                       in self.abspaths(fileids, True, True)])
+    def attrs_matching(self, which):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       self._read_attrs_block_functor(which), \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
 
-    def docs(self, fileids=None, sourced=False):
-        res = []
-        if sourced:
-            res = concat([self.CorpusView(path, self._read_doc_block,
-                                           encoding=enc, source=fileid)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        else:
-            res = concat([self.CorpusView(path, self._read_doc_block,
-                                           encoding=enc)
-                           for (path, enc, fileid)
-                           in self.abspaths(fileids, True, True)])
-        return res
+    def docs(self):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       self._read_doc_block, \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
 
     def _read_word_block(self, stream):
         words = []

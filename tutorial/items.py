@@ -11,11 +11,12 @@ from scrapy.loader.processors import Join
 
 class DmozItem(scrapy.Item):
     title = scrapy.Field()
+    id = scrapy.Field()
     price = scrapy.Field()
     link = scrapy.Field()
     desc = scrapy.Field()
     coords = scrapy.Field()
     attrs = scrapy.Field()
-    posted = scrapy.Field()
-    updated = scrapy.Field()
+    posted = scrapy.Field(serializer=lambda x: x.isoformat())
+    updated = scrapy.Field(serializer=lambda x: x.isoformat())
     image_urls = scrapy.Field()

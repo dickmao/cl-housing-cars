@@ -30,7 +30,7 @@ from StringIO import StringIO
 from os import listdir
 from os.path import join as pathjoin
 
-def read_desc(stream, newlines_are_periods=False):
+def read_desc(stream, newlines_are_periods=True):
     line = stream.readline()
     if not line:
         return None
@@ -121,24 +121,6 @@ class Json100CorpusReader(CorpusReader):
             with self.open(f) as fh:
                 while True:
                     desc = read_desc(fh, newlines_are_periods)
-                    if desc == None:
-                        break
-                    gc.append(desc)
-        return gc
-    
-    def newlines_are_periods(self, fileids=None, sourced=False):
-        """
-        @return: the given file(s) as a single string.
-        @rtype: C{list} of C{str}
-        """
-        if fileids is None: fileids = self._fileids
-        elif isinstance(fileids, basestring): fileids = [fileids]
-        
-        gc = [];
-        for f in fileids:
-            with self.open(f) as fh:
-                while True:
-                    desc = read_desc(fh)
                     if desc == None:
                         break
                     gc.append(desc)

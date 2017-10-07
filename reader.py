@@ -29,6 +29,7 @@ from lxml import etree
 from StringIO import StringIO
 from os import listdir
 from os.path import join as pathjoin
+from tutorial import items
 
 class SkippingCorpusView(StreamBackedCorpusView):
     def __init__(self, fileid, unique, block_reader, startpos=0, encoding='utf8'):
@@ -82,6 +83,10 @@ def read_price(stream):
     if sprice is not None:
         return int(re.findall(r'(\d+)', sprice)[-1])
     return None
+    
+def read_coords(stream):
+    coords = read_x(stream, 'coords')
+    return tuple(float(x) if x is not None else None for x in coords)
     
 def read_attrs(re_which, stream):
     line = stream.readline()
@@ -188,9 +193,23 @@ class Json100CorpusReader(CorpusReader):
                        for (path, enc, fileid) \
                        in self.abspaths(None, True, True)])
 
+    def coords(self):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       lambda stream: [read_coords(stream)], \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
+
     def field(self, x):
         return concat([self.CorpusView(path, self._unique[fileid], \
                                        lambda stream: [read_x(stream, x)], \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
+
+    def fields_all(self):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       lambda stream: [read_X(stream, items.DmozItem.fields.keys())], \
                                        encoding=enc) \
                        for (path, enc, fileid) \
                        in self.abspaths(None, True, True)])

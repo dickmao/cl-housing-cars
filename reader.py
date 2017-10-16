@@ -84,6 +84,26 @@ def read_price(stream):
         return int(re.findall(r'(\d+)', sprice)[-1])
     return None
     
+def read_numbers(stream, X):
+    line = stream.readline()
+    if not line:
+        return None
+    jso = json.loads(line)
+    result = dict()
+    for f in X:
+        result[f] = int(re.findall(r'(\d+(?:\.\d*)?)', jso[f])[0])
+    return result
+    
+def read_datetimes(stream, X):
+    line = stream.readline()
+    if not line:
+        return None
+    jso = json.loads(line)
+    result = dict()
+    for f in X:
+        result[f] = dateutil.parser.parse(jso[f])
+    return result
+    
 def read_coords(stream):
     coords = read_x(stream, 'coords')
     return tuple(float(x) if x is not None else None for x in coords)
@@ -182,6 +202,20 @@ class Json100CorpusReader(CorpusReader):
             raise ValueError('No sentence tokenizer for this corpus')
         return concat([self.CorpusView(path, self._unique[fileid], \
                                        self._read_sent_block, \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
+
+    def numbers(self, vOfw):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       lambda stream: [read_numbers(stream, vOfw)], \
+                                       encoding=enc) \
+                       for (path, enc, fileid) \
+                       in self.abspaths(None, True, True)])
+
+    def datetimes(self, vOfw):
+        return concat([self.CorpusView(path, self._unique[fileid], \
+                                       lambda stream: [read_datetimes(stream, vOfw)], \
                                        encoding=enc) \
                        for (path, enc, fileid) \
                        in self.abspaths(None, True, True)])

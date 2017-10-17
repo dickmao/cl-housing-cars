@@ -91,7 +91,10 @@ def read_numbers(stream, X):
     jso = json.loads(line)
     result = dict()
     for f in X:
-        result[f] = int(re.findall(r'(\d+(?:\.\d*)?)', jso[f])[0])
+        if f in jso and jso[f] is not None:
+            result[f] = int(re.findall(r'(\d+(?:\.\d*)?)', jso[f])[0])
+        else:
+            result[f] = None
     return result
     
 def read_datetimes(stream, X):

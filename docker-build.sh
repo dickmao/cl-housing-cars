@@ -14,7 +14,9 @@ $COPY
 
 RUN set -xe \
   && curl -sSL https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o ./wait-for-it.sh \
-  && chmod u+x ./wait-for-it.sh
+  && chmod u+x ./wait-for-it.sh \
+  && pip install pytz \
+  && rm -rf /var/lib/apt/lists/*
 EOF
 
 OLDIMAGE=$(docker images -q scrapyd-deploy)

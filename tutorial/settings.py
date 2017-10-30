@@ -15,8 +15,10 @@ NEWSPIDER_MODULE = 'tutorial.spiders'
 DOWNLOAD_HANDLERS = {
   's3': None,
 }
-FEED_URI = '{}/scrapy/%(name)s/%(name)s.%(timestamp)s.json'.format(os.path.expanduser('~'))
-MARKER = '{}/scrapy/%(name)s/Marker.%(timestamp)s.json'.format(os.path.expanduser('~'))
+
+OUTPUT_DIR = "/var/lib/scrapyd/items/tutorial" if os.path.isdir("var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
+FEED_URI = os.path.join(OUTPUT_DIR, "%(name)s/%(name)s.%(timestamp)s.json")
+MARKER = os.path.join(OUTPUT_DIR, "%(name)s/Marker.%(timestamp)s.json")
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
@@ -69,8 +71,7 @@ ITEM_PIPELINES = {
     #    'tutorial.pipelines.images.ImagesPipeline': 1
 }
 
-IMAGES_STORE = '{}/scrapy/%(name)s/images'.format(os.path.expanduser('~'))
-
+IMAGES_STORE = os.path.join(OUTPUT_DIR, "%(name)s/images")
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html
 # NOTE: AutoThrottle will honour the standard settings for concurrency and delay

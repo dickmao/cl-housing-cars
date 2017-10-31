@@ -7,7 +7,7 @@
 from scrapy.extensions.feedexport import FeedExporter
 import logging
 import os
-import subprocess
+from subprocess import Popen, PIPE, STDOUT
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,11 @@ class SomePipeline(object):
         except OSError:
             pass
         os.symlink(os.path.basename(self.exporter.slot.file.name), slink)
-        try:
-            dedupe_dir = os.path.dirname(spider.settings['FEED_URI']) % self.exporter._get_uri_params(spider)
-            logger.info("Running /dedupe.py {}".format(dedupe_dir))
-            subprocess.check_call(["/dedupe.py", dedupe_dir])
-        except subprocess.CalledProcessError as e:
-            logger.error("/dedupe.py: {}".format(str(e)))
+        dedupe_dir = os.path.dirname(spider.settings['FEED_URI']) % self.exporter._get_uri_params(spider)
+        logger.info("Running /dedupe.py {}".format(dedupe_dir))
+        # :stackoverflow: jfs
+        process = Popen("/dedupe.py {}".format(dedupe_dir), stdout=PIPE, stderr=STDOUT)
+        with process.stdout:
+            for line in iter(pipe.readline, b''):
+                logging.info('%r', line)
+        process.wait()

@@ -16,7 +16,8 @@ DOWNLOAD_HANDLERS = {
   's3': None,
 }
 
-OUTPUT_DIR = "/var/lib/scrapyd/items/tutorial" if os.path.isdir("var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
+PARENT_DIR = "/var/lib/scrapyd" if os.path.isdir("/var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
+OUTPUT_DIR = "/var/lib/scrapyd/items/tutorial" if os.path.isdir("/var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
 FEED_URI = os.path.join(OUTPUT_DIR, "%(name)s/%(name)s.%(timestamp)s.json")
 MARKER = os.path.join(OUTPUT_DIR, "%(name)s/Marker.%(timestamp)s.json")
 

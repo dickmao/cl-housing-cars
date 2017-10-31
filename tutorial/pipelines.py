@@ -29,10 +29,9 @@ class SomePipeline(object):
         except OSError:
             pass
         os.symlink(os.path.basename(self.exporter.slot.file.name), slink)
-        dedupe_script = os.path.join(spider.settings['PARENT_DIR'], "dedupe.py")
         try:
             dedupe_dir = os.path.dirname(spider.settings['FEED_URI']) % self.exporter._get_uri_params(spider)
-            logger.info("Running {} {}".format(dedupe_script, dedupe_dir))
-            subprocess.check_call([dedupe_script, dedupe_dir])
+            logger.info("Running /dedupe.py {}".format(dedupe_dir))
+            subprocess.check_call(["/dedupe.py", dedupe_dir])
         except subprocess.CalledProcessError as e:
-            logger.error("{}: {}".format(dedupe_script, str(e)))
+            logger.error("/dedupe.py: {}".format(str(e)))

@@ -30,10 +30,11 @@ class SomePipeline(object):
             pass
         os.symlink(os.path.basename(self.exporter.slot.file.name), slink)
         dedupe_dir = os.path.dirname(spider.settings['FEED_URI']) % self.exporter._get_uri_params(spider)
-        logger.info("Running /dedupe.py {}".format(dedupe_dir))
+        dedupe_script = os.path.join(spider.settings['SCRIPT_DIR'], "dedupe.py")
+        logger.info("Running {} {}".format(dedupe_script, dedupe_dir))
         # :stackoverflow: jfs
-        process = Popen("/dedupe.py {}".format(dedupe_dir), stdout=PIPE, stderr=STDOUT)
+        process = Popen([dedupe_script, dedupe_dir], stdout=PIPE, stderr=STDOUT)
         with process.stdout:
-            for line in iter(pipe.readline, b''):
+            for line in iter(process.stdout.readline, b''):
                 logging.info('%r', line)
         process.wait()

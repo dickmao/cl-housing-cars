@@ -202,7 +202,7 @@ args = parser.parse_args()
 args.odir = args.odir.rstrip("/")
 tla = ['abo', 'sub', 'apa', 'cto']
 spider = os.path.basename(args.odir)
-wdir = dirname(os.path.realpath(__file__))
+wdir = os.path.dirname(os.path.realpath(__file__))
 
 dt_marker1 = datetime.fromtimestamp(getmtime(os.path.realpath(join(args.odir, 'marker1'))))
 utcnow = utc.localize(dt_marker1)

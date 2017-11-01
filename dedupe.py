@@ -185,7 +185,7 @@ def numRecurs(vOfv):
     return sum([1 for v in vOfv if len(v) > 13])
 
 def numYell(vOfv):
-    return sum([1 for v in vOfv for w in v if re.search("[A-Z]{3}", w) and enchant.Dict().check(w)])
+    return sum([1 for v in vOfv for w in v if re.search("[A-Z]{3}", w) and enchant.Dict("en_US").check(w)])
 
 def numWords(vOfv):
     return sum([len(v) for v in vOfv])
@@ -325,7 +325,7 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         with open(join(args.odir, "files", "{}-{}".format(tla_link[0], tla_link[1])), "w") as f:
             f.write(z[1].encode('utf-8'))
 
-red = redis.StrictRedis(host='localhost', port=6379, db=0)
+red = redis.StrictRedis(host='redis', port=6379, db=0)
 for i, z in enumerate(zip(craigcr.numbers(['price']), craigcr.field('title'))):
     if i in filtered:
         if z[0]['price'] is not None:

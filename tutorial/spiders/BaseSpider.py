@@ -127,12 +127,13 @@ class BaseSpider(Spider):
                 self.marker = json.load(fp)
                 for k,v in self.marker.iteritems():
                     self.states[k] = self.states.get(k, TopLevelState(k))
-                    self.states[k]._prev_posted = dateutil.parser.parse(v)
+                    if v:
+                        self.states[k]._prev_posted = dateutil.parser.parse(v)
 
     def closed(self, reason):
         fmarker = self.settings['MARKER'] % { 'name': self.name, 'timestamp': self.timestamp }
         with open(fmarker, 'w') as fp:
-            json.dump({ v._url: v._current_posted for v in self.states.values() }, fp, indent=4, cls=DateTimeEncoder)
+            json.dump({ v._url: (v._current_posted if v._current_posted else v._prev_posted) for v in self.states.values() }, fp, indent=4, cls=DateTimeEncoder)
         
     def parse(self, response):
         url = get_base_url(response)

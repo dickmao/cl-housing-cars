@@ -2,7 +2,12 @@
 
 me=$(whoami)
 name=${1:-dmoz}
-DIR="/home/$me/scrapy/${name}"
+if [ -d $name ]; then
+  DIR=$name
+  name=$(basename $DIR)
+else
+  DIR="/home/$me/scrapy/${name}"
+fi
 MARKER1="$DIR/marker1"
 MARKER0="$DIR/marker0"
 if [ -h "$MARKER1" ] ; then

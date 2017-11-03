@@ -38,11 +38,6 @@ def argparse_dirtype(astring):
         raise argparse.ArgumentError
     return astring
 
-def get_index_of(id, lo=0, hi=None):
-    hi = hi if hi is not None else len(ids)
-    pos = bisect_left(ids, id, lo, hi)
-    return (pos if pos != hi and ids[pos] == id else -1)
-
 def make_dict():
     # corpora.Dictionary is a static method of gensim.corpora
     # it establishes the base of operations numbering the vocab,
@@ -212,7 +207,7 @@ craigcr = Json100CorpusReader(args.odir, jsons, dedupe="link")
 coords = list(craigcr.coords())
 links = list(craigcr.field('link'))
 prices = list(craigcr.price())
-ids = sorted(list(craigcr.field('id')))
+ids = list(craigcr.field('id'))
 posted = [dateutil.parser.parse(t) for t in list(craigcr.field('posted'))]
 bedrooms = []
 i2text, i2loc = CorpusDedupe(craigcr, make_dict())
@@ -278,7 +273,7 @@ filtered = []
 with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject'), 'w+') as bad:
     for i,z in enumerate(zip(craigcr.docs(), craigcr.raw(newlines_are_periods=True))):
         try:
-            listing = '%s %s %s' % ((' '.join([word for sent in z[0] for word in sent][0:50]),                                     links[i],                                     re.sub(r'\s+', ' ', listedby[i]) if listedby[i] else "Actual Person?"))
+            listing = '%s %s %s' % ((' '.join([word for sent in z[0] for word in sent][0:50]),                                     links[i], re.sub(r'\s+', ' ', listedby[i]) if listedby[i] else "Actual Person?"))
         except UnicodeEncodeError:
             print  ' '.join([word.encode('utf-8') for sent in z[0] for word in sent])
 

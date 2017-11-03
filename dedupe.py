@@ -61,7 +61,7 @@ def datetime_parser(json_dict):
             pass
     return json_dict
 
-def determine_seven_day_fencepost(dt1):
+def determine_eight_day_fencepost(dt1):
     Markers = sorted([f for f in os.listdir(args.odir) if re.search(r'Marker\..*\.json$', f)],                      reverse=True)
     jsons = []
     for m in Markers:
@@ -69,7 +69,7 @@ def determine_seven_day_fencepost(dt1):
         with open(join(args.odir, m), 'r') as fp:
             url2dt = json.load(fp, object_hook=datetime_parser)
             for url,dt0 in url2dt.iteritems():
-                if (dt1 - dt0).days < 7:
+                if (dt1 - dt0).days < 8:
                     within = True
                     break
         if within:
@@ -201,12 +201,12 @@ parser.add_argument("odir", type=argparse_dirtype, help="required json directory
 args = parser.parse_args()
 args.odir = args.odir.rstrip("/")
 tla = ['abo', 'sub', 'apa', 'cto']
-spider = os.path.basename(args.odir)
+spider = os.path.basename(os.path.realpath(args.odir))
 wdir = os.path.dirname(os.path.realpath(__file__))
 
 dt_marker1 = datetime.fromtimestamp(getmtime(os.path.realpath(join(args.odir, 'marker1'))))
 utcnow = utc.localize(dt_marker1)
-jsons = determine_seven_day_fencepost(utcnow)
+jsons = determine_eight_day_fencepost(utcnow)
 craigcr = Json100CorpusReader(args.odir, jsons, dedupe="link")
 coords = list(craigcr.coords())
 links = list(craigcr.field('link'))
@@ -285,7 +285,7 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         if i2text.q_dupe(i):
             bad.write(("dupe %s" % listing).encode('utf-8') + '\n\n')
             continue
-        if (utcnow - posted[i]).days >= 7:
+        if (utcnow - posted[i]).days >= 8:
             bad.write(("payfor %s" % listing).encode('utf-8') + '\n\n')
             continue
         if listedby[i] is not None and listedby[i] not in oklistedby:

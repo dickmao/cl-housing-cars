@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 WDIR=$(dirname $0)
 PROJECT=tutorial

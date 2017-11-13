@@ -321,6 +321,7 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         with open(join(args.odir, "files", "{}-{}".format(tla_link[0], tla_link[1])), "w") as f:
             f.write(z[1].encode('utf-8'))
 
+
 red = redis.StrictRedis(host='redis', port=6379, db=0)
 for i, z in enumerate(zip(craigcr.numbers(['price']), craigcr.field('title'))):
     if i in filtered:

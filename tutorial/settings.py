@@ -25,7 +25,7 @@ MARKER = os.path.join(OUTPUT_DIR, "%(name)s/Marker.%(timestamp)s.json")
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS=32
+# CONCURRENT_REQUESTS=32
 
 # Configure a delay for requests for the same website (default: 0)
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
@@ -37,6 +37,11 @@ DOWNLOAD_DELAY=1
 
 # Disable cookies (enabled by default)
 COOKIES_ENABLED=False
+
+if os.path.isdir("/var/lib/scrapyd"):
+    PROXY = 'http://scrapyd:8888/?noconnect'
+    API_SCRAPOXY = 'http://localhost:8889/api'
+    API_SCRAPOXY_PASSWORD = 'foobar123'
 
 # Disable Telnet Console (enabled by default)
 #TELNETCONSOLE_ENABLED=False
@@ -55,9 +60,14 @@ COOKIES_ENABLED=False
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,
-#}
+if os.path.isdir("/var/lib/scrapyd"):
+    DOWNLOADER_MIDDLEWARES = {
+    #    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,
+        'scrapoxy.downloadmiddlewares.proxy.ProxyMiddleware': 100,
+        'scrapoxy.downloadmiddlewares.wait.WaitMiddleware': 101,
+        'scrapoxy.downloadmiddlewares.scale.ScaleMiddleware': 102,
+        'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
+    }
 
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html

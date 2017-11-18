@@ -39,8 +39,8 @@ DOWNLOAD_DELAY=1
 COOKIES_ENABLED=False
 
 if os.path.isdir("/var/lib/scrapyd"):
-    PROXY = 'http://scrapyd:8888/?noconnect'
-    API_SCRAPOXY = 'http://localhost:8889/api'
+    PROXY = 'http://scrapoxy:8888/?noconnect'
+    API_SCRAPOXY = 'http://scrapoxy:8889/api'
     API_SCRAPOXY_PASSWORD = 'foobar123'
 
 # Disable Telnet Console (enabled by default)

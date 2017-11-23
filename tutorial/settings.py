@@ -9,6 +9,7 @@
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 import os
+
 BOT_NAME = 'tutorial'
 SPIDER_MODULES = ['tutorial.spiders']
 NEWSPIDER_MODULE = 'tutorial.spiders'
@@ -38,7 +39,7 @@ DOWNLOAD_DELAY=1
 # Disable cookies (enabled by default)
 COOKIES_ENABLED=False
 
-if os.path.isdir("/var/lib/scrapyd"):
+if os.environ.get('SERVICE_6800_NAME'):
     PROXY = 'http://scrapoxy:8888/?noconnect'
     API_SCRAPOXY = 'http://scrapoxy:8889/api'
     API_SCRAPOXY_PASSWORD = 'foobar123'
@@ -60,7 +61,7 @@ if os.path.isdir("/var/lib/scrapyd"):
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
-if os.path.isdir("/var/lib/scrapyd"):
+if os.environ.get('SERVICE_6800_NAME'):
     DOWNLOADER_MIDDLEWARES = {
     #    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,
         'scrapoxy.downloadmiddlewares.proxy.ProxyMiddleware': 100,

@@ -58,7 +58,7 @@ class CallableParseText(Callable):
             item = DmozItem()
             item['desc'] = ' '.join(response.xpath('//section[@id="postingbody"]/text()').extract())
             item['link'] = get_base_url(response)
-            item['title'] = response.xpath('//title/text()').extract_first()
+            item['title'] = response.xpath('//span[@id="titletextonly"]/text()').extract_first() + response.xpath('//span[@class="postingtitletext"]/small/text()').extract_first()
             item['id'] = re.findall(r"(\d+)", response.xpath('//div[@class="postinginfos"]//p[@class="postinginfo"]/text()').extract_first())[-1]
             item['price'] = response.xpath('//section[@class="body"]//span[@class="price"]/text()').extract_first()
             coords = response.xpath('//div[@class="mapbox"]/div[@id="map"]')

@@ -33,20 +33,15 @@ from datetime import datetime
 from dateutil.tz import tzlocal
 import argparse
 
+from sklearn.externals import joblib
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
+
 def argparse_dirtype(astring):
     if not os.path.isdir(astring):
         raise argparse.ArgumentError
     return astring
-
-def make_dict():
-    # corpora.Dictionary is a static method of gensim.corpora
-    # it establishes the base of operations numbering the vocab,
-    # and you feed it strings such as doc2bow(feedit) produces a sparse vector.
-
-    # itertools.chain(*vOfv) produces a yielder of flattened docs (vOfw)
-    # list(itertools.chain(*vOfv)) spells out the yield
-    dictionary = corpora.Dictionary(list(craigcr))
-    return dictionary
 
 def datetime_parser(json_dict):
     for k,v in json_dict.iteritems():
@@ -89,17 +84,15 @@ class i2what(object):
             else:
                 yield self[i]
         
-def CorpusDedupe(cr, dict):
+def CorpusDedupe(cr, dictionary):
     # dict.doc2bow makes:
     #   corpus = [[(0, 1.0), (1, 1.0), (2, 1.0)],
     #             [(2, 1.0), (3, 1.0), (4, 1.0), (5, 1.0), (6, 1.0), (8, 1.0)],
     #             [(1, 1.0), (3, 1.0), (4, 1.0), (7, 1.0)],      ]
-    corpus = [dict.doc2bow(doc) for doc in list(cr)]
-    tfidf = models.TfidfModel(corpus)
-
+    corpus = [dictionary.doc2bow(doc) for doc in list(cr)]
     i2text = np.arange(1,len(corpus)+1,1)
     i2loc = np.arange(1,len(corpus)+1,1)
-    index = SparseMatrixSimilarity(tfidf[corpus], num_features=len(dict.keys()))
+    index = SparseMatrixSimilarity(corpus, num_features=len(dictionary.keys()))
     for i, z in enumerate(zip(index, coords)):
         if i2text[i] > 0:
             negated = -i2text[i]
@@ -192,6 +185,7 @@ def numNonAscii(vOfv):
     return sum([1 for v in vOfv for w in v if any(ord(char) > 127 and ord(char) != 8226 for char in w)])
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--redis-host', default='localhost')
 parser.add_argument("odir", type=argparse_dirtype, help="required json directory")
 args = parser.parse_args()
 args.odir = args.odir.rstrip("/")
@@ -204,13 +198,16 @@ utcnow = utc.localize(dt_marker1)
 payfor = 9
 jsons = determine_payfor_fencepost(utcnow, payfor)
 craigcr = Json100CorpusReader(args.odir, jsons, dedupe="link")
-coords = list(craigcr.coords())
-links = list(craigcr.field('link'))
-prices = list(craigcr.price())
-ids = list(craigcr.field('id'))
-posted = [dateutil.parser.parse(t) for t in list(craigcr.field('posted'))]
+coords = craigcr.coords()
+links = craigcr.field('link')
+prices = craigcr.price()
+ids = craigcr.field('id')
+posted = [dateutil.parser.parse(t) for t in craigcr.field('posted')]
 bedrooms = []
-i2text, i2loc = CorpusDedupe(craigcr, make_dict())
+
+grid_svm = joblib.dump(grid_svm, 'best.pkl')
+
+i2text, i2loc = CorpusDedupe(craigcr, dictionary)
 
 for i, z in enumerate(zip(craigcr.attrs_matching(r'[0-9][bB][rR]'), craigcr.field('title'), craigcr.raw())):
     if z[0] is not None:
@@ -321,15 +318,32 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         with open(join(args.odir, "files", "{}-{}".format(tla_link[0], tla_link[1])), "w") as f:
             f.write(z[1].encode('utf-8'))
 
+crabo_train = Json100CorpusReader(args.odir, jsons, dedupe="link", link_select='abo', exclude=set([ids[i] for i in filtered]))
+crsub_train = Json100CorpusReader(args.odir, jsons, dedupe="link", link_select='sub', exclude=set([ids[i] for i in filtered]))
+traindocs = list(itertools.chain(crabo_train, crsub_train))
+corpus = [dictionary.doc2bow(doc) for doc in traindocs]
 
-red = redis.StrictRedis(host='redis', port=6379, db=0)
-for i, z in enumerate(zip(craigcr.numbers(['price']), craigcr.field('title'))):
-    if i in filtered:
-        if z[0]['price'] is not None:
-            red.hset('item.' + ids[i], 'price', z[0]['price'])
-            red.zadd('item.index.price', z[0]['price'], ids[i])
-        red.hmset('item.' + ids[i], {'link': links[i], 'title': z[1], 'bedrooms': bedrooms[i], 'coords': coords[i], 'posted': posted[i].isoformat() })
-        red.zadd('item.index.bedrooms', bedrooms[i], ids[i])
-        if None not in coords[i]:
-            red.geoadd('item.geohash.coords', *(tuple(reversed(coords[i])) + (ids[i],)))
+tfidf_corpus = tfidf[corpus]
+X = corpus2csc(tfidf_corpus)
+trainLabels = list(itertools.chain([1] * len(list(crabo_train)), [-1] * len(list(crsub_train))))
+model = RidgeClassifier(tol=1e-2, solver="lsqr", fit_intercept=False).fit(X.transpose(), trainLabels)
+
+testdocs = [v for i,v in enumerate(itertools.chain(craigcr)) if i in filtered]
+corpus = [dictionary.doc2bow(doc) for doc in testdocs]
+X2 = corpus2csc(tfidf[corpus], num_terms=X.transpose().shape[1])
+scores = model.decision_function(X2.transpose())
+
+red = redis.StrictRedis(host=args.redis_host, port=6379, db=0)
+prices = craigcr.numbers(['price'])
+titles = craigcr.field('title')
+for si, i in enumerate(sorted(filtered)):
+    if prices[i]['price'] is not None:
+        red.hset('item.' + ids[i], 'price', prices[i]['price'])
+        red.zadd('item.index.price', prices[i]['price'], ids[i])
+    red.hmset('item.' + ids[i], {'link': links[i], 'title': titles[i], 'bedrooms': bedrooms[i], 'coords': coords[i], 'posted': posted[i].isoformat() })
+    red.zadd('item.index.bedrooms', bedrooms[i], ids[i])
+    if None not in coords[i]:
+        red.geoadd('item.geohash.coords', *(tuple(reversed(coords[i])) + (ids[i],)))
+    red.hset('item.' + ids[i], 'score', scores[si])
+    red.zadd('item.index.score', scores[si], ids[i])
 

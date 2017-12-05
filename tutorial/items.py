@@ -16,7 +16,23 @@ class DmozItem(scrapy.Item):
     link = scrapy.Field()
     desc = scrapy.Field()
     coords = scrapy.Field()
+    listedby = scrapy.Field()
     attrs = scrapy.Field()
     posted = scrapy.Field(serializer=lambda x: x.isoformat())
     updated = scrapy.Field(serializer=lambda x: x.isoformat())
     image_urls = scrapy.Field()
+
+class JoineryItem(scrapy.Item):
+    title = scrapy.Field()
+    link = scrapy.Field()
+    id = scrapy.Field()
+    desc = scrapy.Field()
+    listedby = scrapy.Field()
+
+class ListingsProjectItem(scrapy.Item):
+    title = scrapy.Field()
+    link = scrapy.Field()
+    id = scrapy.Field()
+    desc = scrapy.Field()
+    listedby = scrapy.Field()
+

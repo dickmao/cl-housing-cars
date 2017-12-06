@@ -135,7 +135,7 @@ class Json100CorpusReader(CorpusReader):
                  encoding=None):
         CorpusReader.__init__(self, root, fileids, encoding)
         self._unique = dict()
-        tmp = set()
+        self._id2fileid = 
         for f in self._fileids:
             self._unique[f] = []
             with self.open(f) as fh:
@@ -147,12 +147,13 @@ class Json100CorpusReader(CorpusReader):
                     include = True
                     if include and link_select:
                         include = re.search(r"/{0}/".format(link_select), x['link'])
-                    if include and dedupe:
-                        include = x[dedupe] not in tmp
+                    if dedupe:
+                        if include:
+                            include = x[dedupe] not in tmp
+                        tmp.add(x[dedupe])
                     if include and exclude:
                         include = x['id'] not in exclude
                     self._unique[f].append(include)
-                    tmp.add(x[dedupe])
                         
         self._word_tokenizer = word_tokenizer
         self._sent_tokenizer = sent_tokenizer

@@ -16,11 +16,13 @@ from reader import Json100CorpusReader
 import itertools, shutil, requests
 from collections import Counter
 from bisect import bisect_left
+from tempfile import mkstemp
 
 import re
 from lxml import etree
 from os import listdir
 import json
+import cPickle
 from collections import defaultdict
 from math import radians, sin, cos, sqrt, asin
 from nltk.corpus.util import LazyCorpusLoader
@@ -31,12 +33,20 @@ import dateutil.parser
 from pytz import utc
 from datetime import datetime
 from dateutil.tz import tzlocal
+from time import time
 import argparse
 
 from sklearn.externals import joblib
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
+
+def reflexive(x):
+    # for CountVectorizer 'analyzer' which cannot accept a lambda due to pickle caching
+    return x
+
+def get_text_length(x):
+    return np.array([len(t) for t in x]).reshape(-1, 1)
 
 def argparse_dirtype(astring):
     if not os.path.isdir(astring):
@@ -52,7 +62,7 @@ def datetime_parser(json_dict):
     return json_dict
 
 def determine_payfor_fencepost(dt1, thresh):
-    Markers = sorted([f for f in os.listdir(args.odir) if re.search(r'Marker\..*\.json$', f)],                      reverse=True)
+    Markers = [f for f in os.listdir(args.odir) if re.search(r'Marker\..*\.json$', f)]
     jsons = []
     for m in Markers:
         within = False
@@ -83,30 +93,79 @@ class i2what(object):
                 next
             else:
                 yield self[i]
-        
-def CorpusDedupe(cr, dictionary):
+
+def CorpusDedupe(cr):
     # dict.doc2bow makes:
     #   corpus = [[(0, 1.0), (1, 1.0), (2, 1.0)],
     #             [(2, 1.0), (3, 1.0), (4, 1.0), (5, 1.0), (6, 1.0), (8, 1.0)],
     #             [(1, 1.0), (3, 1.0), (4, 1.0), (7, 1.0)],      ]
-    corpus = [dictionary.doc2bow(doc) for doc in list(cr)]
-    i2text = np.arange(1,len(corpus)+1,1)
-    i2loc = np.arange(1,len(corpus)+1,1)
-    index = SparseMatrixSimilarity(corpus, num_features=len(dictionary.keys()))
-    for i, z in enumerate(zip(index, coords)):
-        if i2text[i] > 0:
-            negated = -i2text[i]
-            for j, sim in enumerate(z[0][i+1:]):
-                if sim > .61:
-		    i2text[i] = i2text[i+1+j] = negated
-        if i2loc[i] > 0 and None not in z[1]:
-            ci = z[1]
-            negated = -i2loc[i]
-            for j, cj in enumerate(coords[i+1:]):
-                if ci == cj:
-                    i2loc[i] = i2loc[i+1+j] = negated
+    try:
+        npzfile = np.load(join(args.odir, "dedupe.npz"))
+        i2text = npzfile['i2text']
+        i2loc = npzfile['i2loc']
+    except IOError as e:
+        i2text = np.array([])
+        i2loc = np.array([])
+
+    dictionary = corpora.Dictionary()
+    corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in list(cr)]
+    tfidf = models.TfidfModel(corpus)
+    
+    # new_start will only change when a json file gets too old
+    # at which point, the cache becomes invalid anyway because of 
+    # shadowed ids appearing later in ids[], and so we could just 
+    # make cache_invalid = (new_start == True) and simplify everything
+    try:
+        new_start = np.where(abs(i2text) == int(ids[0]))[0].min()
+    except ValueError:
+        new_start = i2text.size
+
+    cache_invalid = any([abs(i2text[i]) != int(ids[i - new_start]) for i in range(new_start, i2text.size)])
+    if cache_invalid:
+        print("Cache invalid!")
+        new_start = i2text.size
+    cache_end = i2text.size-new_start
+    # [int(i) for i in ids[cache_end:]]))
+    # this has block_reader issues with getting ahead of itself
+    i2text = shift_cache(i2text, new_start, np.asarray([int(i) for i in ids.iterate_from(cache_end)]))
+    i2loc = shift_cache(i2loc, new_start, np.asarray([int(i) for i in ids.iterate_from(cache_end)]))
+    tempf  = mkstemp()[1]
+    corpora.MmCorpus.serialize(tempf, tfidf[corpus], id2word=dictionary.id2token)
+    mmcorpus = corpora.MmCorpus(tempf)
+    index = SparseMatrixSimilarity(mmcorpus)
+    i2sim = index[mmcorpus[cache_end:]]
+
+    assert(len(mmcorpus) == len(coords))
+
+    t0 = time()
+    # ConcatenatedCorpusView cannot seem to random access; must iterate sequentially lest
+    # block reader get ahead of itself
+    coords_inmem = [c for c in coords]
+    for i in range(cache_end, len(mmcorpus)):
+        for di in np.where((i2sim[i-cache_end] > 0.61) & [j!=i for j in range(len(mmcorpus))])[0]:
+            i2text[i] = -abs(i2text[i])
+            i2text[di] = -abs(i2text[di])
+        markdupe(i, i2loc, coords_inmem[i], coords_inmem, cache_end, lambda cj: cj == coords_inmem[i])
+    print("(n-1) + ... (n-k) = k(n - (k+1)/2) took %0.3fs" % (time() - t0))
+
+    np.savez(join(args.odir, "dedupe"), i2text=i2text, i2loc=i2loc)
     return i2what(i2text), i2what(i2loc)
 
+def shift_cache(i2w, new_start, appendme):
+    res = np.delete(i2w, range(new_start), None)
+    return np.append(res, appendme)
+
+def markdupe(i, i2w, ci, others, circend, isSame):
+    ncomps = 0
+    if i2w[i] > 0 and None not in ci:
+        circular = range(i+1, len(others)) + range(0, circend)
+        for j in circular:
+            ncomps += 1
+            if isSame(others[j]):
+                i2w[i] = -abs(i2w[i])
+                i2w[j] = -abs(i2w[j])
+    return ncomps
+    
 def haversine(lat1, lon1, lat2, lon2):
     R = 6372.8 # Earth radius in kilometers
     dLat = radians(lat2 - lat1)
@@ -193,11 +252,10 @@ tla = ['abo', 'sub', 'apa', 'cto']
 spider = os.path.basename(os.path.realpath(args.odir))
 wdir = os.path.dirname(os.path.realpath(__file__))
 
-dt_marker1 = datetime.fromtimestamp(getmtime(os.path.realpath(join(args.odir, 'marker1'))))
-utcnow = utc.localize(dt_marker1)
+dt_marker1 = dateutil.parser.parse(os.path.basename(os.path.realpath(join(args.odir, 'marker1'))).split(".")[1]).replace(tzinfo=utc)
 payfor = 9
-jsons = determine_payfor_fencepost(utcnow, payfor)
-craigcr = Json100CorpusReader(args.odir, jsons, dedupe="link")
+jsons = determine_payfor_fencepost(dt_marker1, payfor)
+craigcr = Json100CorpusReader(args.odir, sorted(jsons), dedupe="id")
 coords = craigcr.coords()
 links = craigcr.field('link')
 prices = craigcr.price()
@@ -205,9 +263,8 @@ ids = craigcr.field('id')
 posted = [dateutil.parser.parse(t) for t in craigcr.field('posted')]
 bedrooms = []
 
-grid_svm = joblib.dump(grid_svm, 'best.pkl')
-
-i2text, i2loc = CorpusDedupe(craigcr, dictionary)
+grid_svm = joblib.load(join(wdir, 'best.pkl'), mmap_mode='r')
+i2text, i2loc = CorpusDedupe(craigcr)
 
 for i, z in enumerate(zip(craigcr.attrs_matching(r'[0-9][bB][rR]'), craigcr.field('title'), craigcr.raw())):
     if z[0] is not None:
@@ -318,18 +375,10 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         with open(join(args.odir, "files", "{}-{}".format(tla_link[0], tla_link[1])), "w") as f:
             f.write(z[1].encode('utf-8'))
 
-crabo_train = Json100CorpusReader(args.odir, jsons, dedupe="link", link_select='abo', exclude=set([ids[i] for i in filtered]))
-crsub_train = Json100CorpusReader(args.odir, jsons, dedupe="link", link_select='sub', exclude=set([ids[i] for i in filtered]))
-traindocs = list(itertools.chain(crabo_train, crsub_train))
-corpus = [dictionary.doc2bow(doc) for doc in traindocs]
-
-tfidf_corpus = tfidf[corpus]
-X = corpus2csc(tfidf_corpus)
-trainLabels = list(itertools.chain([1] * len(list(crabo_train)), [-1] * len(list(crsub_train))))
-model = RidgeClassifier(tol=1e-2, solver="lsqr", fit_intercept=False).fit(X.transpose(), trainLabels)
-
 testdocs = [v for i,v in enumerate(itertools.chain(craigcr)) if i in filtered]
-corpus = [dictionary.doc2bow(doc) for doc in testdocs]
+grid_svm.predict(testdocs)
+
+
 X2 = corpus2csc(tfidf[corpus], num_terms=X.transpose().shape[1])
 scores = model.decision_function(X2.transpose())
 

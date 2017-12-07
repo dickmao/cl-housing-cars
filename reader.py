@@ -42,7 +42,7 @@ class SkippingCorpusView(StreamBackedCorpusView):
     def read_block(self, stream):
         if self._tell != stream.tell():
             self._skipped = 0
-            
+
         tokens = self._block_reader(self._stream)
         self._tell = stream.tell()
         if not self._unique[self._current_blocknum + self._skipped]:
@@ -135,7 +135,7 @@ class Json100CorpusReader(CorpusReader):
                  encoding=None):
         CorpusReader.__init__(self, root, fileids, encoding)
         self._unique = dict()
-        self._id2fileid = 
+        tmp = set()
         for f in self._fileids:
             self._unique[f] = []
             with self.open(f) as fh:

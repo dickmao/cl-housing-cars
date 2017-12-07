@@ -46,7 +46,8 @@ def reflexive(x):
     return x
 
 def get_text_length(x):
-    return np.array([len(t) for t in x]).reshape(-1, 1)
+    import numpy
+    return numpy.array([len(t) for t in x]).reshape(-1, 1)
 
 def argparse_dirtype(astring):
     if not os.path.isdir(astring):
@@ -62,7 +63,7 @@ def datetime_parser(json_dict):
     return json_dict
 
 def determine_payfor_fencepost(dt1, thresh):
-    Markers = [f for f in os.listdir(args.odir) if re.search(r'Marker\..*\.json$', f)]
+    Markers = sorted([f for f in os.listdir(args.odir) if re.search(r'Marker\..*\.json$', f)], reverse=True)
     jsons = []
     for m in Markers:
         within = False
@@ -78,94 +79,46 @@ def determine_payfor_fencepost(dt1, thresh):
             break
     return jsons
 
-class i2what(object):
-    def __init__(self, arr):
-        self._i2w = arr
-    def __len__(self):
-        return len(self._i2w)    
-    def q_dupe(self, i):
-        return self._i2w[i] < 0
-    def __getitem__(self, i):
-        return abs(self._i2w[i])
-    def __iter__(self):
-        for i in self._i2w:
-            if self.q_dupe(i):
-                next
-            else:
-                yield self[i]
-
 def CorpusDedupe(cr):
     # dict.doc2bow makes:
     #   corpus = [[(0, 1.0), (1, 1.0), (2, 1.0)],
     #             [(2, 1.0), (3, 1.0), (4, 1.0), (5, 1.0), (6, 1.0), (8, 1.0)],
     #             [(1, 1.0), (3, 1.0), (4, 1.0), (7, 1.0)],      ]
     try:
-        npzfile = np.load(join(args.odir, "dedupe.npz"))
-        i2text = npzfile['i2text']
-        i2loc = npzfile['i2loc']
+        unduped = joblib.load(join(args.odir, 'unduped.pkl'), mmap_mode='r')
+        duped = joblib.load(join(args.odir, 'duped.pkl'), mmap_mode='r')
     except IOError as e:
-        i2text = np.array([])
-        i2loc = np.array([])
+        unduped = set()
+        duped = set()
 
     dictionary = corpora.Dictionary()
     corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in list(cr)]
     tfidf = models.TfidfModel(corpus)
     
-    # new_start will only change when a json file gets too old
-    # at which point, the cache becomes invalid anyway because of 
-    # shadowed ids appearing later in ids[], and so we could just 
-    # make cache_invalid = (new_start == True) and simplify everything
-    try:
-        new_start = np.where(abs(i2text) == int(ids[0]))[0].min()
-    except ValueError:
-        new_start = i2text.size
-
-    cache_invalid = any([abs(i2text[i]) != int(ids[i - new_start]) for i in range(new_start, i2text.size)])
-    if cache_invalid:
-        print("Cache invalid!")
-        new_start = i2text.size
-    cache_end = i2text.size-new_start
-    # [int(i) for i in ids[cache_end:]]))
-    # this has block_reader issues with getting ahead of itself
-    i2text = shift_cache(i2text, new_start, np.asarray([int(i) for i in ids.iterate_from(cache_end)]))
-    i2loc = shift_cache(i2loc, new_start, np.asarray([int(i) for i in ids.iterate_from(cache_end)]))
     tempf  = mkstemp()[1]
     corpora.MmCorpus.serialize(tempf, tfidf[corpus], id2word=dictionary.id2token)
     mmcorpus = corpora.MmCorpus(tempf)
-    index = SparseMatrixSimilarity(mmcorpus)
-    i2sim = index[mmcorpus[cache_end:]]
-
-    assert(len(mmcorpus) == len(coords))
+    ids_inmem = list(ids)
+    unduped = unduped.intersection(ids_inmem)
+    duped = duped.intersection(ids_inmem)
+    new_ids = set(ids) - unduped.union(duped)
+    new_indices = [ids_inmem.index(i) for i in new_ids]
+    new_sim = SparseMatrixSimilarity(mmcorpus)[mmcorpus[new_indices]]
 
     t0 = time()
     # ConcatenatedCorpusView cannot seem to random access; must iterate sequentially lest
     # block reader get ahead of itself
-    coords_inmem = [c for c in coords]
-    for i in range(cache_end, len(mmcorpus)):
-        for di in np.where((i2sim[i-cache_end] > 0.61) & [j!=i for j in range(len(mmcorpus))])[0]:
-            i2text[i] = -abs(i2text[i])
-            i2text[di] = -abs(i2text[di])
-        markdupe(i, i2loc, coords_inmem[i], coords_inmem, cache_end, lambda cj: cj == coords_inmem[i])
+    assert(len(mmcorpus) == len(ids_inmem))
+    for i,z in enumerate(zip(new_ids, new_indices)):
+        for dj in np.where((new_sim[i] > 0.61) & [j!=z[1] for j in range(len(ids_inmem))])[0]:
+            duped.update([z[0], ids_inmem[dj]])
     print("(n-1) + ... (n-k) = k(n - (k+1)/2) took %0.3fs" % (time() - t0))
 
-    np.savez(join(args.odir, "dedupe"), i2text=i2text, i2loc=i2loc)
-    return i2what(i2text), i2what(i2loc)
+    unduped.update(new_ids - duped)
+    joblib.dump(unduped, join(args.odir, 'unduped.pkl'))
+    joblib.dump(duped, join(args.odir, 'duped.pkl'))
+    return unduped, duped
 
-def shift_cache(i2w, new_start, appendme):
-    res = np.delete(i2w, range(new_start), None)
-    return np.append(res, appendme)
-
-def markdupe(i, i2w, ci, others, circend, isSame):
-    ncomps = 0
-    if i2w[i] > 0 and None not in ci:
-        circular = range(i+1, len(others)) + range(0, circend)
-        for j in circular:
-            ncomps += 1
-            if isSame(others[j]):
-                i2w[i] = -abs(i2w[i])
-                i2w[j] = -abs(i2w[j])
-    return ncomps
-    
 def haversine(lat1, lon1, lat2, lon2):
     R = 6372.8 # Earth radius in kilometers
     dLat = radians(lat2 - lat1)
@@ -190,7 +143,7 @@ def within(coords):
     # sf
     elif spider == "sfc":
 	km = haversine(37.779076, -122.397501, coords[0], coords[1])
-	return km < 1.5
+	return kms < 1.5
     # berkeley
     elif spider == "eby":
 	km = haversine(37.871454, -122.298115, coords[0], coords[1])
@@ -252,10 +205,10 @@ tla = ['abo', 'sub', 'apa', 'cto']
 spider = os.path.basename(os.path.realpath(args.odir))
 wdir = os.path.dirname(os.path.realpath(__file__))
 
-dt_marker1 = dateutil.parser.parse(os.path.basename(os.path.realpath(join(args.odir, 'marker1'))).split(".")[1]).replace(tzinfo=utc)
+dt_marker1 = dateutil.parser.parse(os.path.basename(os.path.realpath(join(args.odir, 'marker1'))).split(".")[1].replace("-", ":")).replace(tzinfo=utc)
 payfor = 9
 jsons = determine_payfor_fencepost(dt_marker1, payfor)
-craigcr = Json100CorpusReader(args.odir, sorted(jsons), dedupe="id")
+craigcr = Json100CorpusReader(args.odir, sorted(jsons))
 coords = craigcr.coords()
 links = craigcr.field('link')
 prices = craigcr.price()
@@ -264,8 +217,7 @@ posted = [dateutil.parser.parse(t) for t in craigcr.field('posted')]
 bedrooms = []
 
 grid_svm = joblib.load(join(wdir, 'best.pkl'), mmap_mode='r')
-i2text, i2loc = CorpusDedupe(craigcr)
-
+unduped, duped = CorpusDedupe(craigcr, dedupe="id")
 for i, z in enumerate(zip(craigcr.attrs_matching(r'[0-9][bB][rR]'), craigcr.field('title'), craigcr.raw())):
     if z[0] is not None:
         bedrooms.append(int(re.findall(r"[0-9]", z[0])[0]))
@@ -323,19 +275,20 @@ except OSError as e:
     if e.errno != errno.EEXIST:
         raise
 
+scores = grid_svm.decision_function(itertools.chain_from_iterable(craigcr))
 filtered = []
 with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject'), 'w+') as bad:
     for i,z in enumerate(zip(craigcr.docs(), craigcr.raw(newlines_are_periods=True))):
-        try:
-            listing = '%s %s %s' % ((' '.join([word for sent in z[0] for word in sent][0:50]),                                     links[i], re.sub(r'\s+', ' ', listedby[i]) if listedby[i] else "Actual Person?"))
-        except UnicodeEncodeError:
-            print  ' '.join([word.encode('utf-8') for sent in z[0] for word in sent])
+        listing = '%s %s %s' % ((' '.join([word for sent in z[0] for word in sent][0:50]),                                     links[i], re.sub(r'\s+', ' ', listedby[i]) if listedby[i] else "Actual Person?"))
 
         # filter in order of increasing time complexity
-        if i2text.q_dupe(i):
+        if scores[i] < -0.5:
+            bad.write(("garbage %s" % listing).encode('utf-8') + '\n\n')
+            continue
+        if ids[i] in duped:
             bad.write(("dupe %s" % listing).encode('utf-8') + '\n\n')
             continue
-        if (utcnow - posted[i]).days >= payfor:
+        if (dt_marker1 - posted[i]).days >= payfor:
             bad.write(("payfor %s" % listing).encode('utf-8') + '\n\n')
             continue
         if listedby[i] is not None and listedby[i] not in oklistedby:
@@ -350,9 +303,10 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         if not listedby[i] and not qPronouns(z[0]):
             bad.write(("pronouns %s" % listing).encode('utf-8') + '\n\n')
             continue
-        if re.search(r'leasebreak', z[1]):
-            bad.write(("leasebreak %s" % listing).encode('utf-8') + '\n\n')
-            continue
+
+#        if re.search(r'leasebreak', z[1]):
+#            bad.write(("leasebreak %s" % listing).encode('utf-8') + '\n\n')
+#            continue
 
         nw=numWords(z[0])
         ns=numSents(z[0])
@@ -375,13 +329,6 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         with open(join(args.odir, "files", "{}-{}".format(tla_link[0], tla_link[1])), "w") as f:
             f.write(z[1].encode('utf-8'))
 
-testdocs = [v for i,v in enumerate(itertools.chain(craigcr)) if i in filtered]
-grid_svm.predict(testdocs)
-
-
-X2 = corpus2csc(tfidf[corpus], num_terms=X.transpose().shape[1])
-scores = model.decision_function(X2.transpose())
-
 red = redis.StrictRedis(host=args.redis_host, port=6379, db=0)
 prices = craigcr.numbers(['price'])
 titles = craigcr.field('title')
@@ -395,4 +342,3 @@ for si, i in enumerate(sorted(filtered)):
         red.geoadd('item.geohash.coords', *(tuple(reversed(coords[i])) + (ids[i],)))
     red.hset('item.' + ids[i], 'score', scores[si])
     red.zadd('item.index.score', scores[si], ids[i])
-

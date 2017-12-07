@@ -208,7 +208,7 @@ wdir = os.path.dirname(os.path.realpath(__file__))
 dt_marker1 = dateutil.parser.parse(os.path.basename(os.path.realpath(join(args.odir, 'marker1'))).split(".")[1].replace("-", ":")).replace(tzinfo=utc)
 payfor = 9
 jsons = determine_payfor_fencepost(dt_marker1, payfor)
-craigcr = Json100CorpusReader(args.odir, sorted(jsons))
+craigcr = Json100CorpusReader(args.odir, sorted(jsons), dedupe="id")
 coords = craigcr.coords()
 links = craigcr.field('link')
 prices = craigcr.price()
@@ -217,7 +217,7 @@ posted = [dateutil.parser.parse(t) for t in craigcr.field('posted')]
 bedrooms = []
 
 grid_svm = joblib.load(join(wdir, 'best.pkl'), mmap_mode='r')
-unduped, duped = CorpusDedupe(craigcr, dedupe="id")
+unduped, duped = CorpusDedupe(craigcr)
 for i, z in enumerate(zip(craigcr.attrs_matching(r'[0-9][bB][rR]'), craigcr.field('title'), craigcr.raw())):
     if z[0] is not None:
         bedrooms.append(int(re.findall(r"[0-9]", z[0])[0]))

@@ -275,7 +275,7 @@ except OSError as e:
     if e.errno != errno.EEXIST:
         raise
 
-scores = grid_svm.decision_function(itertools.chain.from_iterable(craigcr))
+scores = grid_svm.decision_function(list(itertools.chain(craigcr)))
 filtered = []
 with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject'), 'w+') as bad:
     for i,z in enumerate(zip(craigcr.docs(), craigcr.raw(newlines_are_periods=True))):

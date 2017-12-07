@@ -283,7 +283,7 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
 
         # filter in order of increasing time complexity
         if scores[i] < -0.5:
-            bad.write(("garbage %s" % listing).encode('utf-8') + '\n\n')
+            bad.write(("spam %s" % listing).encode('utf-8') + '\n\n')
             continue
         if ids[i] in duped:
             bad.write(("dupe %s" % listing).encode('utf-8') + '\n\n')
@@ -320,7 +320,7 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
         nna=numNonAscii(z[0])
 
         if nna > 3 or spp <= 1.0 or yr > 0.1 or ny > 20 or ng > 3:
-            bad.write(listing.encode('utf-8') + '\n\n')
+            bad.write(("garbage %s" % listing).encode('utf-8') + '\n\n')
             continue
         good.write(listing.encode('utf-8') + '\n\n')
         filtered.append(i)
@@ -332,7 +332,7 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
 red = redis.StrictRedis(host=args.redis_host, port=6379, db=0)
 prices = craigcr.numbers(['price'])
 titles = craigcr.field('title')
-for si, i in enumerate(sorted(filtered)):
+for i in sorted(filtered):
     if prices[i]['price'] is not None:
         red.hset('item.' + ids[i], 'price', prices[i]['price'])
         red.zadd('item.index.price', prices[i]['price'], ids[i])
@@ -340,5 +340,5 @@ for si, i in enumerate(sorted(filtered)):
     red.zadd('item.index.bedrooms', bedrooms[i], ids[i])
     if None not in coords[i]:
         red.geoadd('item.geohash.coords', *(tuple(reversed(coords[i])) + (ids[i],)))
-    red.hset('item.' + ids[i], 'score', scores[si])
-    red.zadd('item.index.score', scores[si], ids[i])
+    red.hset('item.' + ids[i], 'score', scores[i])
+    red.zadd('item.index.score', scores[i], ids[i])

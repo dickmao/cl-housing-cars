@@ -98,20 +98,19 @@ def CorpusDedupe(cr):
     tempf  = mkstemp()[1]
     corpora.MmCorpus.serialize(tempf, tfidf[corpus], id2word=dictionary.id2token)
     mmcorpus = corpora.MmCorpus(tempf)
-    ids_inmem = list(ids)
-    unduped = unduped.intersection(ids_inmem)
-    duped = duped.intersection(ids_inmem)
+    unduped = unduped.intersection(ids)
+    duped = duped.intersection(ids)
     new_ids = set(ids) - unduped.union(duped)
-    new_indices = [ids_inmem.index(i) for i in new_ids]
+    new_indices = [ids.index(i) for i in new_ids]
     new_sim = SparseMatrixSimilarity(mmcorpus)[mmcorpus[new_indices]]
 
     t0 = time()
     # ConcatenatedCorpusView cannot seem to random access; must iterate sequentially lest
     # block reader get ahead of itself
-    assert(len(mmcorpus) == len(ids_inmem))
+    assert(len(mmcorpus) == len(ids))
     for i,z in enumerate(zip(new_ids, new_indices)):
-        for dj in np.where((new_sim[i] > 0.61) & [j!=z[1] for j in range(len(ids_inmem))])[0]:
-            duped.update([z[0], ids_inmem[dj]])
+        for dj in np.where((new_sim[i] > 0.61) & [j!=z[1] for j in range(len(ids))])[0]:
+            duped.update([z[0], ids[dj]])
     print("(n-1) + ... (n-k) = k(n - (k+1)/2) took %0.3fs" % (time() - t0))
 
     unduped.update(new_ids - duped)
@@ -209,16 +208,16 @@ dt_marker1 = dateutil.parser.parse(os.path.basename(os.path.realpath(join(args.o
 payfor = 9
 jsons = determine_payfor_fencepost(dt_marker1, payfor)
 craigcr = Json100CorpusReader(args.odir, sorted(jsons), dedupe="id")
-coords = craigcr.coords()
-links = craigcr.field('link')
-prices = craigcr.price()
-ids = craigcr.field('id')
+coords = list(craigcr.coords())
+links = list(craigcr.field('link'))
+titles = list(craigcr.field('title'))
+ids = list(craigcr.field('id'))
 posted = [dateutil.parser.parse(t) for t in craigcr.field('posted')]
 bedrooms = []
 
 grid_svm = joblib.load(join(wdir, 'best.pkl'), mmap_mode='r')
 unduped, duped = CorpusDedupe(craigcr)
-for i, z in enumerate(zip(craigcr.attrs_matching(r'[0-9][bB][rR]'), craigcr.field('title'), craigcr.raw())):
+for i, z in enumerate(zip(craigcr.attrs_matching(r'[0-9][bB][rR]'), titles, craigcr.raw())):
     if z[0] is not None:
         bedrooms.append(int(re.findall(r"[0-9]", z[0])[0]))
     else:
@@ -330,8 +329,7 @@ with open(join(args.odir, 'digest'), 'w+') as good, open(join(args.odir, 'reject
             f.write(z[1].encode('utf-8'))
 
 red = redis.StrictRedis(host=args.redis_host, port=6379, db=0)
-prices = craigcr.numbers(['price'])
-titles = craigcr.field('title')
+prices = list(craigcr.numbers(['price']))
 for i in sorted(filtered):
     if prices[i]['price'] is not None:
         red.hset('item.' + ids[i], 'price', prices[i]['price'])

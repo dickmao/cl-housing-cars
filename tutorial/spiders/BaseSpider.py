@@ -60,7 +60,7 @@ class CallableParseText(Callable):
             item['link'] = get_base_url(response)
             title0 = response.xpath('//span[@id="titletextonly"]/text()').extract_first()
             title1 = response.xpath('//span[@class="postingtitletext"]/small/text()').extract_first()
-            item['title'] = (title0 if title0 else "") + (title1 if title1 else "")
+            item['title'] = (title0 if title0 else "No title") + (title1 if title1 else "")
             item['id'] = re.findall(r"(\d+)", response.xpath('//div[@class="postinginfos"]//p[@class="postinginfo"]/text()').extract_first())[-1]
             item['price'] = response.xpath('//section[@class="body"]//span[@class="price"]/text()').extract_first()
             coords = response.xpath('//div[@class="mapbox"]/div[@id="map"]')

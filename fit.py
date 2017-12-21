@@ -2,7 +2,9 @@ from __future__ import division, print_function
 import logging
 
 from time import time
-import os, errno, operator, re, sys, subprocess, signal, redis
+import os, errno, operator, re, json, sys, subprocess, signal, dateutil.parser, argparse
+from os.path import getmtime, join, realpath
+
 import itertools, shutil, requests, boto3, pickle
 
 from corenlp import CoreNLPClient, WordTokenizer, SentTokenizer
@@ -27,9 +29,6 @@ from nltk.corpus import dependency_treebank
 from nltk.corpus import treebank_raw
 from nltk.corpus import treebank
 from nltk.corpus.util import LazyCorpusLoader
-
-import re, json, dateutil.parser, argparse
-from os.path import getmtime, join, realpath
 
 from pytz import utc
 from datetime import datetime

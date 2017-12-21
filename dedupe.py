@@ -204,7 +204,7 @@ tla = ['abo', 'sub', 'apa', 'cto']
 spider = os.path.basename(os.path.realpath(args.odir))
 wdir = os.path.dirname(os.path.realpath(__file__))
 
-dt_marker1 = dateutil.parser.parse(os.path.basename(os.path.realpath(join(args.odir, 'marker1'))).split(".")[1].replace("-", ":")).replace(tzinfo=utc)
+dt_marker1 = dateutil.parser.parse(os.path.basename(os.path.realpath(join(args.odir, 'marker1')).split(".")[1][::-1].replace("-", ":", 2)[::-1]).replace(tzinfo=utc)
 payfor = 9
 jsons = determine_payfor_fencepost(dt_marker1, payfor)
 craigcr = Json100CorpusReader(args.odir, sorted(jsons), dedupe="id")

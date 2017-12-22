@@ -27,7 +27,6 @@ from glob import iglob
 from StringIO import StringIO
 from os import listdir
 from os.path import join as pathjoin
-from tutorial import items
 
 class SkippingCorpusView(StreamBackedCorpusView):
     def __init__(self, fileid, unique, block_reader, startpos=0, encoding='utf8'):
@@ -242,13 +241,6 @@ class Json100CorpusReader(CorpusReader):
     def field(self, x):
         return concat([self.CorpusView(path, self._unique[fileid], \
                                        lambda stream: [read_x(stream, x)], \
-                                       encoding=enc) \
-                       for (path, enc, fileid) \
-                       in self.abspaths(None, True, True)])
-
-    def fields_all(self):
-        return concat([self.CorpusView(path, self._unique[fileid], \
-                                       lambda stream: [read_X(stream, items.DmozItem.fields.keys())], \
                                        encoding=enc) \
                        for (path, enc, fileid) \
                        in self.abspaths(None, True, True)])

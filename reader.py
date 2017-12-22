@@ -24,8 +24,6 @@ from gensim.utils import lemmatize
 import json, itertools
 
 from glob import iglob
-from lxml.etree import XMLSyntaxError
-from lxml import etree
 from StringIO import StringIO
 from os import listdir
 from os.path import join as pathjoin

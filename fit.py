@@ -106,6 +106,8 @@ def main():
                 bucket.download_file(body, join(".", body))
         else:
             break
+    for body in ["joinery.json", "listingsproject.json"]:
+        bucket.download_file(body, body)
 
     with CoreNLPClient(start_cmd="gradle -p {} server".format("../CoreNLP"), endpoint=args.corenlp_uri, timeout=15000) as client:
         crabo = Json100CorpusReader(".", jsons, dedupe="id", link_select='abo', word_tokenizer=WordTokenizer(client), sent_tokenizer=SentTokenizer(client))

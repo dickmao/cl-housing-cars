@@ -1,61 +1,26 @@
 from __future__ import division, print_function
 import logging
 
-from time import time
-import os, errno, operator, re, json, sys, subprocess, signal, dateutil.parser, argparse
-from os.path import getmtime, join, realpath
+import os, re, json, dateutil.parser, argparse
+from os.path import join
 
-import itertools, shutil, requests, boto3, pickle
+import itertools, boto3, pickle
 
 from corenlp import CoreNLPClient, WordTokenizer, SentTokenizer
 import numpy as np
-import enchant
-import matplotlib.pyplot as plt
-
-from gensim import parsing, matutils, interfaces, corpora, models, similarities, summarization
-from gensim.utils import lemmatize
-from gensim.corpora.mmcorpus import MmCorpus
-from gensim.matutils import corpus2csc
-from gensim.similarities.docsim import SparseMatrixSimilarity
 
 from collections import Callable
-from nltk import collocations, association, text, tree
-from nltk import bigrams,ConditionalFreqDist,FreqDist,pos_tag,pos_tag_sents
-from nltk.grammar import DependencyGrammar
-from nltk.parse import (
-    DependencyGraph, ProjectiveDependencyParser, NonprojectiveDependencyParser)
-
-from nltk.corpus import dependency_treebank
-from nltk.corpus import treebank_raw
-from nltk.corpus import treebank
-from nltk.corpus.util import LazyCorpusLoader
 
 from pytz import utc
-from datetime import datetime
-from dateutil.tz import tzlocal
-from bisect import bisect_left
 
 from reader import Json100CorpusReader
 
 import sklearn.externals.joblib
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.feature_selection import SelectFromModel
-from sklearn.feature_selection import SelectKBest, chi2
-from sklearn.linear_model import RidgeClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion, make_pipeline
-from sklearn.svm import LinearSVC, SVC
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.linear_model import SGDClassifier
-from sklearn.linear_model import Perceptron
-from sklearn.linear_model import PassiveAggressiveClassifier
-from sklearn.naive_bayes import BernoulliNB, ComplementNB, MultinomialNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neighbors import NearestCentroid
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.utils.extmath import density
+from sklearn.svm import SVC
 from sklearn import metrics
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, ParameterGrid
 
 # Display progress logs on stdout
 logging.basicConfig(level=logging.INFO,
@@ -143,7 +108,6 @@ def main():
             break
 
     with CoreNLPClient(start_cmd="gradle -p {} server".format("../CoreNLP"), endpoint=args.corenlp_uri, timeout=15000) as client:
-        cr = Json100CorpusReader(".", jsons, dedupe="id", word_tokenizer=WordTokenizer(client), sent_tokenizer=SentTokenizer(client))
         crabo = Json100CorpusReader(".", jsons, dedupe="id", link_select='abo', word_tokenizer=WordTokenizer(client), sent_tokenizer=SentTokenizer(client))
         crsub = Json100CorpusReader(".", jsons, dedupe="id", link_select='sub', word_tokenizer=WordTokenizer(client), sent_tokenizer=SentTokenizer(client))
         crjoin = Json100CorpusReader(".", ["joinery.json"], dedupe="id", word_tokenizer=WordTokenizer(client), sent_tokenizer=SentTokenizer(client))
@@ -176,7 +140,6 @@ def main():
         print(metrics.accuracy_score(crtest_labels, y_pred))
         print(metrics.confusion_matrix(crtest_labels, y_pred))
         sklearn.externals.joblib.dump(svc.named_steps['svc'], 'fit.pkl')
-        
 
 if __name__ == '__main__':
     main()

@@ -8,19 +8,22 @@
 #     http://doc.scrapy.org/en/latest/topics/settings.html
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-import os
+import os, boto3
+
+credentials = boto3.Session().get_credentials()
 
 BOT_NAME = 'tutorial'
 SPIDER_MODULES = ['tutorial.spiders']
 NEWSPIDER_MODULE = 'tutorial.spiders'
 DOWNLOAD_HANDLERS = {
-  's3': None,
+  's3': 'scrapy.core.downloader.handlers.s3.S3DownloadHandler',
 }
 
 SCRIPT_DIR = "/" if os.path.isdir("/var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
-OUTPUT_DIR = "/var/lib/scrapyd/items/tutorial" if os.path.isdir("/var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
-FEED_URI = os.path.join(OUTPUT_DIR, "%(name)s/%(name)s.%(timestamp)s.json")
-MARKER = os.path.join(OUTPUT_DIR, "%(name)s/Marker.%(timestamp)s.json")
+AWS_ACCESS_KEY_ID = credentials.access_key
+AWS_SECRET_ACCESS_KEY = credentials.secret_key
+FEED_URI = "s3://303634175659.%(name)s/Data.%(timestamp)s.json"
+MARKER = "s3://303634175659.%(name)s/Marker.%(timestamp)s.json"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
@@ -83,7 +86,6 @@ ITEM_PIPELINES = {
     #    'tutorial.pipelines.images.ImagesPipeline': 1
 }
 
-IMAGES_STORE = os.path.join(OUTPUT_DIR, "%(name)s/images")
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html
 # NOTE: AutoThrottle will honour the standard settings for concurrency and delay

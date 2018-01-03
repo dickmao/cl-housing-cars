@@ -5,7 +5,9 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 from scrapy.extensions.feedexport import FeedExporter
-import os
+import os, pickle
+from pytz import utc
+import dateutil.parser
 
 class SomePipeline(object):
     def __init__(self, exporter):
@@ -19,9 +21,12 @@ class SomePipeline(object):
         return item
 
     def close_spider(self,spider):
-        slink = '%s/%s' % (os.path.dirname(self.exporter.slot.file.name), 'marker1')
-        try:
-            os.unlink(slink)
-        except OSError:
-            pass
-        os.symlink(os.path.basename(self.exporter.slot.file.name), slink)
+        stamp = dateutil.parser.parse(self.exporter.slot.storage.keyname \
+                                      .split(".")[1][::-1].replace("-", ":", 2)[::-1]) \
+                               .replace(tzinfo=utc);
+        restore = self.exporter.slot.storage.keyname
+        self.exporter.slot.storage.keyname = "marker1.pkl"
+        file = self.exporter.slot.storage.open(spider)
+        pickle.dump(stamp, file)
+        self.exporter.slot.storage.store(file)
+        self.exporter.slot.storage.keyname = restore

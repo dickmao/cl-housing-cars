@@ -22,8 +22,8 @@ DOWNLOAD_HANDLERS = {
 SCRIPT_DIR = "/" if os.path.isdir("/var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
 AWS_ACCESS_KEY_ID = credentials.access_key
 AWS_SECRET_ACCESS_KEY = credentials.secret_key
-FEED_URI = "s3://303634175659.%(name)s/Data.%(timestamp)s.json"
-MARKER = "s3://303634175659.%(name)s/Marker.%(timestamp)s.json"
+FEED_URI = "s3://303634175659.%(name)s/Data.%(time)s.json"
+MARKER = "s3://303634175659.%(name)s/Marker.%(time)s.json"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'

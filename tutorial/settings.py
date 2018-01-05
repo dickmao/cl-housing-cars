@@ -12,18 +12,23 @@ import os, boto3
 
 credentials = boto3.Session().get_credentials()
 
+LOG_LEVEL = 'INFO'
 BOT_NAME = 'tutorial'
 SPIDER_MODULES = ['tutorial.spiders']
 NEWSPIDER_MODULE = 'tutorial.spiders'
 DOWNLOAD_HANDLERS = {
-  's3': 'scrapy.core.downloader.handlers.s3.S3DownloadHandler',
+#  's3': 'scrapy.core.downloader.handlers.s3.S3DownloadHandler',
 }
 
-SCRIPT_DIR = "/" if os.path.isdir("/var/lib/scrapyd") else os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
 AWS_ACCESS_KEY_ID = credentials.access_key
 AWS_SECRET_ACCESS_KEY = credentials.secret_key
-FEED_URI = "s3://303634175659.%(name)s/Data.%(time)s.json"
-MARKER = "s3://303634175659.%(name)s/Marker.%(time)s.json"
+FEED_URI = "s3x://303634175659.%(name)s/Data.%(timestamp)s.json"
+FEED_TEMPDIR = "/var/tmp"
+FEED_STORAGES = {
+    's3x': 'tutorial.feedstorage.S3FeedStorage',
+}
+MARKER_DIR = "{}/{}/%(name)s".format("/var/lib/scrapyd/items" if os.path.isdir("/var/lib/scrapyd") else "/var/tmp", BOT_NAME)
+MARKER = "Marker.%(timestamp)s.json"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
@@ -82,7 +87,7 @@ if os.environ.get('SERVICE_6800_NAME'):
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'tutorial.pipelines.SomePipeline': 300,
+    # 'tutorial.pipelines.SomePipeline': 300,
     #    'tutorial.pipelines.images.ImagesPipeline': 1
 }
 

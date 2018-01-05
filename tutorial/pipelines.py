@@ -10,23 +10,15 @@ from pytz import utc
 import dateutil.parser
 
 class SomePipeline(object):
-    def __init__(self, exporter):
+    def __init__(self, exporter, crawler):
         self.exporter = exporter
+        self.settings = crawler.settings
 
     @classmethod
     def from_crawler(cls, crawler):
-        return cls(exporter=next(x for x in crawler.extensions.middlewares if isinstance(x, FeedExporter)))
+        exporter = next(x for x in crawler.extensions.middlewares if isinstance(x, FeedExporter))
+        return cls(exporter=exporter, settings=crawler.settings)
 
     def process_item(self, item, spider):
         return item
 
-    def close_spider(self,spider):
-        stamp = dateutil.parser.parse(self.exporter.slot.storage.keyname \
-                                      .split(".")[1][::-1].replace("-", ":", 2)[::-1]) \
-                               .replace(tzinfo=utc);
-        restore = self.exporter.slot.storage.keyname
-        self.exporter.slot.storage.keyname = "marker1.pkl"
-        file = self.exporter.slot.storage.open(spider)
-        pickle.dump(stamp, file)
-        self.exporter.slot.storage.store(file)
-        self.exporter.slot.storage.keyname = restore

@@ -1,6 +1,6 @@
-from BaseSpider import BaseSpider
+from CraigSpider import CraigSpider
 
-class DmozSpider(BaseSpider):
+class DmozSpider(CraigSpider):
     name = "sfc"
     start_urls = [
          "http://sfbay.craigslist.org/search/sfc/apa?max_bedrooms=1",

@@ -1,7 +1,7 @@
-from BaseSpider import BaseSpider
+from CraigSpider import CraigSpider
 
-class QueSpider(BaseSpider):
-    name = "que"
+class QueSpider(CraigSpider):
+    name = "queens"
     start_urls = [
-        "https://newyork.craigslist.org/search/que/sub?min_bedrooms=0&max_bedrooms=3&private_room=1&private_bath=1",
+        "https://newyork.craigslist.org/search/que/sub?min_bedrooms=0&max_bedrooms=1&private_room=1&private_bath=1",
     ]

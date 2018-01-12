@@ -30,9 +30,12 @@ class JoineryItem(scrapy.Item):
     listedby = scrapy.Field()
 
 class ListingsProjectItem(scrapy.Item):
-    title = scrapy.Field()
-    link = scrapy.Field()
-    id = scrapy.Field()
     desc = scrapy.Field()
+    link = scrapy.Field()
+    title = scrapy.Field()
+    id = scrapy.Field()
     listedby = scrapy.Field()
-
+    coords = scrapy.Field()
+    posted = scrapy.Field()
+    updated = scrapy.Field()
+    price = scrapy.Field()

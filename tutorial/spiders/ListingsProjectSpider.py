@@ -27,7 +27,10 @@ class ListingsProjectSpider(BaseSpider):
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise
-        play_app = Repo.clone_from("git@github.com:dickmao/play-app.git", to_path='.play-app', **{"depth": 1, "single-branch": True, "no-checkout": True})
+        password = os.environ['GIT_PASSWORD']
+        play_app = Repo.clone_from("https://{}@github.com/dickmao/play-app.git".format(password), 
+                                   to_path='.play-app', 
+                                   **{"depth": 1, "single-branch": True, "no-checkout": True})
         play_app.git.checkout('HEAD', "conf/NY.P.tsv")
         self._alphabins = defaultdict(lambda: dict())
         with open(".play-app/conf/NY.P.tsv", 'r') as fp:
@@ -66,7 +69,7 @@ class ListingsProjectSpider(BaseSpider):
                 item['desc'] = listing['description'] + '\n' + (listing.get('about_you') or "")
                 item['link'] = response.urljoin("listing/{}".format(listing['slug']))
                 item['title'] = listing['headline']
-                item['id'] = listing['id']
+                item['id'] = str(listing['id'])
                 item['listedby'] = listing['name']
                 item['coords'] = self._guess_place(listing['geo_neighborhood'])[1]
                 item['posted'] = pytz.timezone('US/Eastern').localize(dateutil.parser.parse(listing['newsletter']['email_date'])).replace(hour=8).isoformat()

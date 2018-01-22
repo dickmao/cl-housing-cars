@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from .BaseSpider import BaseSpider
 from git import Repo
 import editdistance
-import json, pickle, dateutil, shutil, errno, pytz
+import json, pickle, dateutil, shutil, errno, pytz, os
 from collections import defaultdict
 
 

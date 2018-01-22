@@ -6,6 +6,7 @@ for bf in $(s3cmd ls) ; do
     spider=${bf##*.} 
     dir=/var/lib/scrapyd/items/tutorial/$spider
     mkdir -m 0775 -p $dir
+    rm -f $dir/{digest,reject}
     mf=$(s3cmd ls $buck/Marker. | sort | tail -1)
     marker=${mf##* }
     if [ ! -e $dir/$(basename $marker) ] ; then

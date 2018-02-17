@@ -128,12 +128,10 @@ class CraigSpider(BaseSpider):
                     self.states[k]._prev_posted = dateutil.parser.parse(v)
 
     def closed(self, reason):
+        super(CraigSpider, self).closed(reason)
         if self.exporter.slot.itemcount:
-            marker_dir = self.settings['MARKER_DIR'] % self.exporter._get_uri_params(self)
             marker = self.settings['MARKER'] % self.exporter._get_uri_params(self)
-            if not os.path.exists(marker_dir):
-                os.makedirs(marker_dir)
-            with open(os.path.join(marker_dir, marker), 'a+') as fp:
+            with open(os.path.join(self.marker_dir, marker), 'a+') as fp:
                 fp.seek(0)
                 json.dump({ v._url: (v._current_posted if v._current_posted else v._prev_posted) for v in self.states.values() }, fp, indent=4, cls=DateTimeEncoder)
                 fp.truncate()

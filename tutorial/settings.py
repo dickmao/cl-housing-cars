@@ -70,6 +70,7 @@ if os.environ.get('SERVICE_6800_NAME'):
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 if os.environ.get('SERVICE_6800_NAME'):
+    WAIT_FOR_SCALE = 10
     DOWNLOADER_MIDDLEWARES = {
     #    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,
         'scrapoxy.downloadmiddlewares.proxy.ProxyMiddleware': 100,

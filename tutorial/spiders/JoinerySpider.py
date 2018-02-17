@@ -51,6 +51,7 @@ class JoinerySpider(BaseSpider):
         return url in self.set_old_top_urls
 
     def closed(self, reason):
+        super(JoinerySpider, self).closed(reason)
         if self.exporter.slot.itemcount:
             to_save = (self.new_top_urls + self.old_top_urls)[0:10]
             file = self.storage.open(self)

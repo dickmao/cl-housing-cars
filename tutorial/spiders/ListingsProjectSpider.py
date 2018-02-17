@@ -5,7 +5,7 @@ from git import Repo
 import editdistance
 import json, pickle, dateutil, shutil, errno, pytz, os
 from collections import defaultdict
-
+import tempfile, subprocess
 
 class ListingsProjectSpider(BaseSpider):
     name = "listingsproject"
@@ -23,17 +23,24 @@ class ListingsProjectSpider(BaseSpider):
         self.wednesdays = [self._wednesday(date.today() - timedelta(days=1+7*i))
                            for i in range(4)]
         try:
-            shutil.rmtree('.play-app')
+            shutil.rmtree('/var/tmp/.play-app')
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise
-        password = os.environ['GIT_PASSWORD']
+
+        password = os.environ.get('GIT_PASSWORD')
+        if not password:
+            with tempfile.NamedTemporaryFile() as temp:
+                temp.write("protocol=https\nhost=github.com\n")
+                temp.seek(0)
+                output = { lst[0]: lst[1] for lst in [line.split("=") for line in subprocess.check_output(['git', 'credential', 'fill'], stdin=temp).rstrip().split("\n")]}
+                password = output['password']
         play_app = Repo.clone_from("https://{}@github.com/dickmao/play-app.git".format(password), 
-                                   to_path='.play-app', 
+                                   to_path='/var/tmp/.play-app', 
                                    **{"depth": 1, "single-branch": True, "no-checkout": True})
         play_app.git.checkout('HEAD', "conf/NY.P.tsv")
         self._alphabins = defaultdict(lambda: dict())
-        with open(".play-app/conf/NY.P.tsv", 'r') as fp:
+        with open("/var/tmp/.play-app/conf/NY.P.tsv", 'r') as fp:
             for line in fp:
                 arr = line.rstrip('\n').split('\t')
                 self._alphabins[arr[2][0].lower()][arr[2]] = (arr[4], arr[5])
@@ -46,11 +53,17 @@ class ListingsProjectSpider(BaseSpider):
                 self.start_urls.append("https://www.listingsproject.com/newsletter/{}/new-york-city".format(w))
 
     def closed(self, reason):
+        super(ListingsProjectSpider, self).closed(reason)
         if self.exporter.slot.itemcount:
+            marker = self.settings['MARKER'] % self.exporter._get_uri_params(self)
+
             file = self.storage.open(self)
             pickle.dump(self.wednesdays, file)
-            marker = self.settings['MARKER'] % self.exporter._get_uri_params(self)
             self.upload_s3(marker, file)
+
+            with open(os.path.join(self.marker_dir, marker), 'w+') as fp:
+                pickle.dump(self.wednesdays, fp)
+
 
     def _guess_place(self, x):
         try:

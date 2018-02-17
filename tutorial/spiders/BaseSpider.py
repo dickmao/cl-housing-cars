@@ -1,7 +1,7 @@
 from scrapy.extensions.feedexport import FeedExporter
 from scrapy.spiders import Spider
 from datetime import datetime
-import pickle
+import pickle, os
 
 class BaseSpider(Spider):
     """Provides common code for s3 uploaders/downloaders."""
@@ -15,6 +15,9 @@ class BaseSpider(Spider):
         super(BaseSpider, self)._set_crawler(crawler)
         self.exporter = next(x for x in self.crawler.extensions.middlewares if isinstance(x, FeedExporter))
         self.storage = self.exporter._get_storage(self.settings['FEED_URI'] % self.exporter._get_uri_params(self))
+        self.marker_dir = self.settings['MARKER_DIR'] % self.exporter._get_uri_params(self)
+        if not os.path.exists(self.marker_dir):
+            os.makedirs(self.marker_dir)
         response = self.storage.s3_client.list_objects_v2(Bucket=self.storage.bucketname, Prefix=self.settings['MARKER'].split('.')[0])
         if 'Contents' in response:
             for content in response['Contents']:
@@ -30,3 +33,6 @@ class BaseSpider(Spider):
     def download_s3(self, keyname, deserialize=pickle.loads):
         response = self.storage.s3_client.get_object(Bucket=self.storage.bucketname, Key=keyname)
         return deserialize(response['Body'].read())
+
+    def closed(self, reason):
+        return

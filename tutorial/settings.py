@@ -8,8 +8,15 @@
 #     http://doc.scrapy.org/en/latest/topics/settings.html
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-import os, boto3
+import os, boto3, socket
+from contextlib import closing
 
+# https://stackoverflow.com/users/715042/michael
+def check_socket(host, port):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        return sock.connect_ex((host, port)) == 0
+
+q_scrapoxy = check_socket('scrapoxy', 8888)
 credentials = boto3.Session().get_credentials()
 
 LOG_LEVEL = 'INFO'
@@ -47,7 +54,7 @@ DOWNLOAD_DELAY=1
 # Disable cookies (enabled by default)
 COOKIES_ENABLED=False
 
-if os.environ.get('SERVICE_6800_NAME'):
+if q_scrapoxy:
     PROXY = 'http://scrapoxy:8888/?noconnect'
     API_SCRAPOXY = 'http://scrapoxy:8889/api'
     API_SCRAPOXY_PASSWORD = 'foobar123'
@@ -69,7 +76,7 @@ if os.environ.get('SERVICE_6800_NAME'):
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
-if os.environ.get('SERVICE_6800_NAME'):
+if q_scrapoxy:
     WAIT_FOR_SCALE = 10
     DOWNLOADER_MIDDLEWARES = {
     #    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,

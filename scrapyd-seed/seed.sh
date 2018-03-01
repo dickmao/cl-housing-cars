@@ -3,13 +3,14 @@
 IFS=$'\n'
 for bf in $(s3cmd ls) ; do
     buck=${bf##* }
-    spider=${bf##*.} 
+    spider=${buck##*.} 
     dir=/var/lib/scrapyd/items/tutorial/$spider
-    mkdir -m 0775 -p $dir
     rm -f $dir/{digest,reject}
     mf=$(s3cmd ls $buck/Marker. | sort | tail -1)
     marker=${mf##* }
-    if [ ! -e $dir/$(basename $marker) ] ; then
+    if [ ! -z $marker ] && [ ! -e $dir/$(basename $marker) ] ; then
+        mkdir -m 0775 -p $dir
         s3cmd get $marker $dir/
     fi
 done
+unset IFS

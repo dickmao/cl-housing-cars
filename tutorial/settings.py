@@ -29,7 +29,8 @@ DOWNLOAD_HANDLERS = {
 
 AWS_ACCESS_KEY_ID = credentials.access_key
 AWS_SECRET_ACCESS_KEY = credentials.secret_key
-FEED_URI = "s3x://303634175659.%(name)s/Data.%(timestamp)s.json"
+AWS_ACCOUNT_ID = boto3.client('sts').get_caller_identity()['Account']
+FEED_URI = "s3x://{}.%(name)s/Data.%(timestamp)s.json".format(AWS_ACCOUNT_ID)
 FEED_TEMPDIR = "/var/tmp"
 FEED_STORAGES = {
     's3x': 'tutorial.feedstorage.S3FeedStorage',

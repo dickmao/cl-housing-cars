@@ -18,7 +18,7 @@ def check_socket(host, port):
             ret = sock.connect_ex((host, port))
             return ret == 0
         except:
-            return false
+            return False
 
 q_scrapoxy = check_socket('scrapoxy', 8888)
 credentials = boto3.Session().get_credentials()

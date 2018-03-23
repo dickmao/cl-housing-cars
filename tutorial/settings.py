@@ -14,7 +14,11 @@ from contextlib import closing
 # https://stackoverflow.com/users/715042/michael
 def check_socket(host, port):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        return sock.connect_ex((host, port)) == 0
+        try:
+            ret = sock.connect_ex((host, port))
+            return ret == 0
+        except:
+            return false
 
 q_scrapoxy = check_socket('scrapoxy', 8888)
 credentials = boto3.Session().get_credentials()

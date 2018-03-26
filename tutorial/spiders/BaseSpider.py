@@ -1,47 +1,38 @@
-from scrapy import Request
+from scrapy.extensions.feedexport import FeedExporter
 from scrapy.spiders import Spider
-from scrapy.utils.response import get_base_url
-from tutorial.items import DmozItem
-from scrapy.shell import inspect_response
-from sys import exit
+from datetime import datetime
+import pickle, os
 
 class BaseSpider(Spider):
-    allowed_domains = ["craigslist.org"]
-    start_urls = []
+    """Provides common code for s3 uploaders/downloaders."""
 
-    def parse_text(self, response):
-        item = DmozItem()
-        item['desc'] = ' '.join(response.xpath('//section[@id="postingbody"]/text()').extract())
-        item['link'] = get_base_url(response)
-        item['title'] = response.xpath('//title/text()').extract_first()
-        item['price'] = response.xpath('//section[@class="body"]//span[@class="price"]/text()').extract_first()
-        coords = response.xpath('//div[@class="mapbox"]/div[@id="map"]')
-        item['coords'] = (coords.xpath('./@data-latitude').extract_first(),
-                          coords.xpath('./@data-longitude').extract_first())
-        item['attrs'] = []
-        for span in response.xpath('//div[@class="mapAndAttrs"]//p[@class="attrgroup"]/span'):
-            item['attrs'].append(' '.join(span.xpath('.//text()').extract()))
-            
-        # item['listedby'] = response.xpath('//div[@class="mapAndAttrs"]/p[@class="attrgroup"]/span[contains(.//text(), "listed")]/b/text()').extract_first()
-        # item['title'] = sel.xpath('a/text()').extract()
-        # item['link'] = sel.xpath('a/@href').extract()
-        # item['desc'] = sel.xpath('text()').extract()
-        item['image_urls'] = []
-        for thumb in response.xpath('//div[@id="thumbs"]//img'):
-            item['image_urls'].append(thumb.xpath('.//@src').extract_first())
-        if item['desc']:
-            yield item
+    def __init__(self, name=None, **kwargs):
+        super(BaseSpider, self).__init__(name, **kwargs)
+        self.timestamp = datetime.utcnow().replace(microsecond=0).isoformat().replace(':', '-')
+        self.Marker = ''
 
-    def parse(self, response):
-        stopat = response.xpath('//h4[@class="ban nearby"]/following-sibling::li//@data-pid').extract_first()
-        for rrow in response.xpath('//div[@class="content"]//li[@class="result-row"]'):
-            pid = rrow.xpath('.//@data-pid').extract_first()
-            if pid == stopat:
-                break
-            href = rrow.xpath('.//@href').extract_first()
-            url = response.urljoin(href)
-            yield Request(url, self.parse_text)
-        next_page = response.xpath('//a[@class="button next"]//@href').extract_first()
-        if next_page:
-            url = response.urljoin(next_page)
-            yield Request(url, self.parse)
+    def _set_crawler(self, crawler):
+        super(BaseSpider, self)._set_crawler(crawler)
+        self.exporter = next(x for x in self.crawler.extensions.middlewares if isinstance(x, FeedExporter))
+        self.storage = self.exporter._get_storage(self.settings['FEED_URI'] % self.exporter._get_uri_params(self))
+        self.marker_dir = self.settings['MARKER_DIR'] % self.exporter._get_uri_params(self)
+        if not os.path.exists(self.marker_dir):
+            os.makedirs(self.marker_dir)
+        response = self.storage.s3_client.list_objects_v2(Bucket=self.storage.bucketname, Prefix=self.settings['MARKER'].split('.')[0])
+        if 'Contents' in response:
+            for content in response['Contents']:
+                self.Marker = max(content['Key'], self.Marker)
+
+    def upload_s3(self, keyname, fp):
+        restore = self.storage.keyname
+        self.storage.keyname = keyname
+        # blocking or else synchro issue
+        self.storage._store_in_thread(fp)
+        self.storage.keyname = restore
+
+    def download_s3(self, keyname, deserialize=pickle.loads):
+        response = self.storage.s3_client.get_object(Bucket=self.storage.bucketname, Key=keyname)
+        return deserialize(response['Body'].read())
+
+    def closed(self, reason):
+        return

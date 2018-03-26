@@ -8,31 +8,61 @@
 #     http://doc.scrapy.org/en/latest/topics/settings.html
 #     http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 #     http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-import os
+import os, boto3, socket
+from contextlib import closing
+
+# https://stackoverflow.com/users/715042/michael
+def check_socket(host, port):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        try:
+            ret = sock.connect_ex((host, port))
+            return ret == 0
+        except:
+            return False
+
+q_scrapoxy = check_socket('scrapoxy', 8888)
+credentials = boto3.Session().get_credentials()
+
+LOG_LEVEL = 'INFO'
 BOT_NAME = 'tutorial'
 SPIDER_MODULES = ['tutorial.spiders']
 NEWSPIDER_MODULE = 'tutorial.spiders'
 DOWNLOAD_HANDLERS = {
-  's3': None,
+#  's3': 'scrapy.core.downloader.handlers.s3.S3DownloadHandler',
 }
-FEED_URI = '{}/scrapy/%(name)s/%(name)s.%(time)s.json'.format(os.path.expanduser('~'))
+
+AWS_ACCESS_KEY_ID = credentials.access_key
+AWS_SECRET_ACCESS_KEY = credentials.secret_key
+AWS_ACCOUNT_ID = boto3.client('sts').get_caller_identity()['Account']
+FEED_URI = "s3x://{}.%(name)s/Data.%(timestamp)s.json".format(AWS_ACCOUNT_ID)
+FEED_TEMPDIR = "/var/tmp"
+FEED_STORAGES = {
+    's3x': 'tutorial.feedstorage.S3FeedStorage',
+}
+MARKER_DIR = "{}/{}/%(name)s".format("/var/lib/scrapyd/items" if os.path.isdir("/var/lib/scrapyd") else "/var/tmp", BOT_NAME)
+MARKER = "Marker.%(timestamp)s.json"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-#CONCURRENT_REQUESTS=32
+# CONCURRENT_REQUESTS=32
 
 # Configure a delay for requests for the same website (default: 0)
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY=3
+DOWNLOAD_DELAY=1
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN=16
 #CONCURRENT_REQUESTS_PER_IP=16
 
 # Disable cookies (enabled by default)
-#COOKIES_ENABLED=False
+COOKIES_ENABLED=False
+
+if q_scrapoxy:
+    PROXY = 'http://scrapoxy:8888/?noconnect'
+    API_SCRAPOXY = 'http://scrapoxy:8889/api'
+    API_SCRAPOXY_PASSWORD = 'foobar123'
 
 # Disable Telnet Console (enabled by default)
 #TELNETCONSOLE_ENABLED=False
@@ -51,9 +81,15 @@ USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,
-#}
+if q_scrapoxy:
+    WAIT_FOR_SCALE = 10
+    DOWNLOADER_MIDDLEWARES = {
+    #    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,
+        'scrapoxy.downloadmiddlewares.proxy.ProxyMiddleware': 100,
+        'scrapoxy.downloadmiddlewares.wait.WaitMiddleware': 101,
+        'scrapoxy.downloadmiddlewares.scale.ScaleMiddleware': 102,
+        'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
+    }
 
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html
@@ -64,11 +100,9 @@ USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'tutorial.pipelines.SomePipeline': 300,
+    # 'tutorial.pipelines.SomePipeline': 300,
     #    'tutorial.pipelines.images.ImagesPipeline': 1
 }
-
-IMAGES_STORE = '{}/scrapy/%(name)s/images'.format(os.path.expanduser('~'))
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html

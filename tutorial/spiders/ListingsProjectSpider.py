@@ -1,5 +1,5 @@
 from tutorial.items import ListingsProjectItem
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from .BaseSpider import BaseSpider
 from git import Repo
 import editdistance
@@ -20,7 +20,7 @@ class ListingsProjectSpider(BaseSpider):
 
     def __init__(self, name=None, **kwargs):
         super(ListingsProjectSpider, self).__init__(name, **kwargs)
-        self.wednesdays = [self._wednesday(date.today() - timedelta(days=1+7*i))
+        self.wednesdays = [self._wednesday((datetime.now(pytz.timezone("US/Eastern")) - timedelta(days=7*i, seconds=3600*10)).date())
                            for i in range(4)]
         try:
             shutil.rmtree('/var/tmp/.play-app')

@@ -1,5 +1,5 @@
 from tutorial.items import ListingsProjectItem
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 from .BaseSpider import BaseSpider
 from git import Repo
 import editdistance
@@ -38,9 +38,9 @@ class ListingsProjectSpider(BaseSpider):
         play_app = Repo.clone_from("https://{}@github.com/dickmao/play-app.git".format(password), 
                                    to_path='/var/tmp/.play-app', 
                                    **{"depth": 1, "single-branch": True, "no-checkout": True})
-        play_app.git.checkout('HEAD', "conf/NY.P.tsv")
+        play_app.git.checkout('HEAD', "conf/NY.icare.tsv")
         self._alphabins = defaultdict(lambda: dict())
-        with open("/var/tmp/.play-app/conf/NY.P.tsv", 'r') as fp:
+        with open("/var/tmp/.play-app/conf/NY.icare.tsv", 'r') as fp:
             for line in fp:
                 arr = line.rstrip('\n').split('\t')
                 self._alphabins[arr[2][0].lower()][arr[2]] = (arr[4], arr[5])
@@ -73,6 +73,9 @@ class ListingsProjectSpider(BaseSpider):
             result = (None, (None, None))
         return result
 
+    def _isolocalize(self, timestring):
+        return pytz.timezone('US/Eastern').localize(dateutil.parser.parse(timestring)).replace(hour=8).isoformat()
+
     def parse(self, response):
         item = ListingsProjectItem()
         blob = json.loads(response.xpath('//div/@data-react-props').extract_first())
@@ -85,9 +88,11 @@ class ListingsProjectSpider(BaseSpider):
                 item['id'] = str(listing['id'])
                 item['listedby'] = listing['name']
                 item['coords'] = self._guess_place(listing['geo_neighborhood'])[1]
-                item['posted'] = pytz.timezone('US/Eastern').localize(dateutil.parser.parse(listing['newsletter']['email_date'])).replace(hour=8).isoformat()
+                item['posted'] = self._isolocalize(listing['newsletter']['email_date'])
                 item['updated'] = item['posted']
                 item['price'] = listing['price']
+                item['begin'] = self._isolocalize(listing['start_date'])
+                item['end'] = self._isolocalize(listing['end_date'])
 
                 if item['desc']:
                     yield item

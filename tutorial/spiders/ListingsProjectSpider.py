@@ -91,8 +91,8 @@ class ListingsProjectSpider(BaseSpider):
                 item['posted'] = self._isolocalize(listing['newsletter']['email_date'])
                 item['updated'] = item['posted']
                 item['price'] = listing['price']
-                item['begin'] = self._isolocalize(listing['start_date']) if listings['start_date'] else None
-                item['end'] = self._isolocalize(listing['end_date']) if listings['end_date'] else None
+                item['begin'] = self._isolocalize(listing['start_date']) if listing['start_date'] else None
+                item['end'] = self._isolocalize(listing['end_date']) if listing['end_date'] else None
 
                 if item['desc']:
                     yield item

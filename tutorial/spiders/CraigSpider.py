@@ -49,6 +49,8 @@ class CallableParseText(Callable):
         
     def __call__(self, response):
         isodates = response.xpath('//div[@class="postinginfos"]//time[@class="date timeago"]/@datetime').extract()
+        if not isodates:
+            return
         if not self._spider.states[self._url]._current_posted:
             # we're in the first page of results
             self._spider.states[self._url]._current_posted = dateutil.parser.parse(isodates[-1])

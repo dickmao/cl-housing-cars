@@ -39,3 +39,5 @@ class ListingsProjectItem(scrapy.Item):
     posted = scrapy.Field()
     updated = scrapy.Field()
     price = scrapy.Field()
+    begin = scrapy.Field()
+    end = scrapy.Field()

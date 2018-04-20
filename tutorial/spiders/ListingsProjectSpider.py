@@ -87,7 +87,7 @@ class ListingsProjectSpider(BaseSpider):
                 item['title'] = listing['headline']
                 item['id'] = str(listing['id'])
                 item['listedby'] = listing['name']
-                item['coords'] = self._guess_place(listing['geo_neighborhood'])[1]
+                item['coords'] = self._guess_place(listing['geo_city'])[1]
                 item['posted'] = self._isolocalize(listing['newsletter']['email_date'])
                 item['updated'] = item['posted']
                 item['price'] = listing['price']

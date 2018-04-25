@@ -1,8 +1,8 @@
-from CraigSpider import CraigSpider
+from .CraigSpider import CraigSpider
 
-class DmozSpider(CraigSpider):
-    name = "sfc"
+class sfbaySpider(CraigSpider):
+    name = "sfbay"
     start_urls = [
-         "http://sfbay.craigslist.org/search/sfc/apa?max_bedrooms=1",
-         "http://sfbay.craigslist.org/search/sfc/sub?max_bedrooms=1",
+        "https://sfbay.craigslist.org/search/sfc/apa?min_bedrooms=0&max_bedrooms=3&min_price=500&max_price=5000&private_room=1&private_bath=1",
+        "https://sfbay.craigslist.org/search/sfc/sub?min_bedrooms=0&max_bedrooms=3&min_price=500&max_price=5000&private_room=1&private_bath=1",
     ]

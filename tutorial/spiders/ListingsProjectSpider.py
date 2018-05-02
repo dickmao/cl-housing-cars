@@ -22,7 +22,6 @@ class ListingsProjectSpider(BaseSpider):
         super(ListingsProjectSpider, self).__init__(name, **kwargs)
         self.wednesdays = [self._wednesday((datetime.now(pytz.timezone("US/Eastern")) - timedelta(days=7*i, seconds=3600*9)).date())
                            for i in range(4)]
-        print self.wednesdays
         try:
             shutil.rmtree('/var/tmp/.play-app')
         except OSError as e:
@@ -36,8 +35,8 @@ class ListingsProjectSpider(BaseSpider):
                 temp.seek(0)
                 output = { lst[0]: lst[1] for lst in [line.split("=") for line in subprocess.check_output(['git', 'credential', 'fill'], stdin=temp).rstrip().split("\n")]}
                 password = output['password']
-        play_app = Repo.clone_from("https://{}@github.com/dickmao/play-app.git".format(password), 
-                                   to_path='/var/tmp/.play-app', 
+        play_app = Repo.clone_from("https://{}@github.com/dickmao/play-app.git".format(password),
+                                   to_path='/var/tmp/.play-app',
                                    **{"depth": 1, "single-branch": True, "no-checkout": True})
         play_app.git.checkout('HEAD', "conf/NY.icare.tsv")
         self._alphabins = defaultdict(lambda: dict())

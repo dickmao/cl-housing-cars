@@ -20,8 +20,9 @@ class ListingsProjectSpider(BaseSpider):
 
     def __init__(self, name=None, **kwargs):
         super(ListingsProjectSpider, self).__init__(name, **kwargs)
-        self.wednesdays = [self._wednesday((datetime.now(pytz.timezone("US/Eastern")) - timedelta(days=7*i, seconds=3600*10)).date())
+        self.wednesdays = [self._wednesday((datetime.now(pytz.timezone("US/Eastern")) - timedelta(days=7*i, seconds=3600*9)).date())
                            for i in range(4)]
+        print self.wednesdays
         try:
             shutil.rmtree('/var/tmp/.play-app')
         except OSError as e:

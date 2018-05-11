@@ -52,8 +52,9 @@ USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 DOWNLOAD_DELAY=1
+RETRY_TIMES = 0
 # The download delay setting will honor only one of:
-#CONCURRENT_REQUESTS_PER_DOMAIN=16
+CONCURRENT_REQUESTS_PER_DOMAIN=1
 #CONCURRENT_REQUESTS_PER_IP=16
 
 # Disable cookies (enabled by default)
@@ -63,6 +64,8 @@ if q_scrapoxy:
     PROXY = 'http://scrapoxy:8888/?noconnect'
     API_SCRAPOXY = 'http://scrapoxy:8889/api'
     API_SCRAPOXY_PASSWORD = 'foobar123'
+
+BLACKLIST_HTTP_STATUS_CODES = [ 403 ]
 
 # Disable Telnet Console (enabled by default)
 #TELNETCONSOLE_ENABLED=False
@@ -89,6 +92,7 @@ if q_scrapoxy:
         'scrapoxy.downloadmiddlewares.wait.WaitMiddleware': 101,
         'scrapoxy.downloadmiddlewares.scale.ScaleMiddleware': 102,
         'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
+        'scrapoxy.downloadmiddlewares.blacklist.BlacklistDownloaderMiddleware': 950,
     }
 
 # Enable or disable extensions

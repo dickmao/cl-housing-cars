@@ -102,7 +102,7 @@ RUN set -xe \
   && apt-get clean \
   && curl -sSL https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o ./wait-for-it.sh \
   && chmod u+x ./wait-for-it.sh \
-  && pip install pytz python-dateutil boto3 scrapoxy editdistance GitPython \
+  && pip install pytz python-dateutil boto3 scrapoxy editdistance GitPython redis \
   && echo "source /root/.bash_aliases" >> /root/.bashrc \
   && rm -rf /var/lib/apt/lists/*
 COPY ./scrapyd-schedule.tmp /etc/cron.d/scrapyd-schedule

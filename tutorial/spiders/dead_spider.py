@@ -1,5 +1,5 @@
 from .BaseSpider import BaseSpider
-import redis, sys
+import redis
 
 class DeadSpider(BaseSpider):
     name = "dead"
@@ -38,6 +38,7 @@ class DeadSpider(BaseSpider):
 
         for db,ids in enumerate(bydb):
             if ids:
+                self.logger.info("Deleting db={} {}".format(db, ', '.join(ids)))
                 red = redis.StrictRedis(host=self.settings['REDIS_HOST'], db=db)
                 red.delete(*["item.{}".format(i) for i in ids])
                 red.zrem("item.index.price", *ids)

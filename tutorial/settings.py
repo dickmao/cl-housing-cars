@@ -87,7 +87,7 @@ BLACKLIST_HTTP_STATUS_CODES = [ 403 ]
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
 if q_scrapoxy:
-    WAIT_FOR_SCALE = 10
+    WAIT_FOR_SCALE = 300
     DOWNLOADER_MIDDLEWARES = {
     #    'tutorial.middlewares.MyCustomDownloaderMiddleware': 543,
         'scrapoxy.downloadmiddlewares.proxy.ProxyMiddleware': 100,

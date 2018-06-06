@@ -21,6 +21,7 @@ def check_socket(host, port):
             return False
 
 q_scrapoxy = check_socket('scrapoxy', 8888)
+q_redis = check_socket('redis', 6379)
 credentials = boto3.Session().get_credentials()
 
 LOG_LEVEL = 'INFO'
@@ -34,6 +35,7 @@ DOWNLOAD_HANDLERS = {
 AWS_ACCESS_KEY_ID = credentials.access_key
 AWS_SECRET_ACCESS_KEY = credentials.secret_key
 AWS_ACCOUNT_ID = boto3.client('sts').get_caller_identity()['Account']
+REDIS_HOST = "redis" if q_redis else "localhost"
 FEED_URI = "s3x://{}.%(name)s/Data.%(timestamp)s.json".format(AWS_ACCOUNT_ID)
 FEED_TEMPDIR = "/var/tmp"
 FEED_STORAGES = {

@@ -1,5 +1,5 @@
 from .BaseSpider import BaseSpider
-import redis
+import redis, pickle, os
 
 class DeadSpider(BaseSpider):
     name = "dead"
@@ -9,19 +9,42 @@ class DeadSpider(BaseSpider):
         super(DeadSpider, self).__init__(name, **kwargs)
         self.link2dbitem = dict()
         self.dels = []
+        self.last_id = ""
 
-    def _set_crawler(self, crawler):
-        super(DeadSpider, self)._set_crawler(crawler)
+    def _add_links(self):
+        start_adding = not(bool(self.last_id))
         for db in range(11):
+            if len(self.start_urls) >= 100:
+                break
             red = redis.StrictRedis(host=self.settings['REDIS_HOST'], db=db)
             try:
                 for i in red.zscan_iter('item.index.score'):
-                    link = red.hget("item.{}".format(i[0]), 'link')
-                    self.start_urls.append(link)
-                    self.link2dbitem[link] = (db, i[0])
+                    if start_adding:
+                        link = red.hget("item.{}".format(i[0]), 'link')
+                        self.start_urls.append(link)
+                        self.link2dbitem[link] = (db, i[0])
+                        if len(self.start_urls) >= 100:
+                            self.last_id = i[0]
+                            break
+                    else:
+                        start_adding = self.last_id == i[0]
             except redis.exceptions.ConnectionError as e:
                 self.logger.warning("db={} {}".format(db, e))
                 next
+
+    def _set_crawler(self, crawler):
+        super(DeadSpider, self)._set_crawler(crawler)
+        try:
+            self.last_id = pickle.load(open(os.path.join(self.marker_dir, 'last-id.pkl'), 'r'))
+        except IOError:
+            self.last_id = ""
+        self._add_links
+        # Not enough (self.last_id not found or tail end).
+        # In either case, last_id is True
+        # Could result in overlap-around, but won't be for more than 100
+        if len(self.start_urls) < 100 and self.last_id:
+            self.last_id = ""
+            self._add_links
 
     def parse(self, response):
         if (bool(response.xpath('//section[@class="body"]//div[@class="removed"]')) or
@@ -30,6 +53,9 @@ class DeadSpider(BaseSpider):
 
     def closed(self, reason):
         super(DeadSpider, self).closed(reason)
+
+        with open(os.path.join(self.marker_dir, 'last-id.pkl'), 'w+') as fp:
+            pickle.dump(self.last_id, fp)
 
         bydb = [[] for _ in xrange(11)]
         for url in self.dels:

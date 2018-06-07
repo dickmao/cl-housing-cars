@@ -38,13 +38,13 @@ class DeadSpider(BaseSpider):
             self.last_id = pickle.load(open(os.path.join(self.marker_dir, 'last-id.pkl'), 'r'))
         except IOError:
             self.last_id = ""
-        self._add_links
+        self._add_links()
         # Not enough (self.last_id not found or tail end).
         # In either case, last_id is True
         # Could result in overlap-around, but won't be for more than 100
         if len(self.start_urls) < 100 and self.last_id:
             self.last_id = ""
-            self._add_links
+            self._add_links()
 
     def parse(self, response):
         if (bool(response.xpath('//section[@class="body"]//div[@class="removed"]')) or

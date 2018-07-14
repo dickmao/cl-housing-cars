@@ -65,7 +65,9 @@ COOKIES_ENABLED=False
 if q_scrapoxy:
     PROXY = 'http://scrapoxy:8888/?noconnect'
     API_SCRAPOXY = 'http://scrapoxy:8889/api'
-    API_SCRAPOXY_PASSWORD = 'foobar123'
+    API_SCRAPOXY_PASSWORD = os.environ.get('API_SCRAPOXY_PASSWORD')
+    if not API_SCRAPOXY_PASSWORD:
+        raise
 
 BLACKLIST_HTTP_STATUS_CODES = [ 403 ]
 

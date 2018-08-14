@@ -15,6 +15,7 @@ from contextlib import closing
 def check_socket(host, port):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         try:
+            sock.settimeout(6)
             ret = sock.connect_ex((host, port))
             return ret == 0
         except:
@@ -46,6 +47,7 @@ MARKER = "Marker.%(timestamp)s.json"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'tutorial (+http://www.yourdomain.com)'
+DOWNLOAD_FAIL_ON_DATALOSS = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # CONCURRENT_REQUESTS=32

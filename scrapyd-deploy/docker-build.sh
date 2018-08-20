@@ -1,13 +1,10 @@
 #!/bin/bash -ex
 
-from_scrapyd_deploy=$(docker images -q scrapyd-deploy:scaff)
-from_scrapyd_deploy=${from_scrapyd_deploy:-vimagick/scrapyd}
 while [[ $# -gt 0 ]] ; do
   key="$1"
   case "$key" in
       -s|--scratch)
       scratch=1
-      from_scrapyd_deploy="vimagick/scrapyd"
       shift
       ;;
       *)
@@ -94,17 +91,71 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 EOF
 
 cat > ./Dockerfile.tmp <<EOF
-FROM ${from_scrapyd_deploy}
-MAINTAINER dick <noreply@shunyet.com>
+FROM debian:stretch
+MAINTAINER kev <noreply@easypi.pro>
+
 RUN set -xe \
-  && apt-get -yq update \
-  && DEBIAN_FRONTEND=noninteractive apt-get -yq install cron jq netcat-openbsd \
-  && apt-get clean \
-  && curl -sSL https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o ./wait-for-it.sh \
-  && chmod u+x ./wait-for-it.sh \
-  && pip install pytz python-dateutil boto3 scrapoxy editdistance GitPython redis \
-  && echo "source /root/.bash_aliases" >> /root/.bashrc \
-  && rm -rf /var/lib/apt/lists/*
+    && apt-get -yq update \
+    && apt-get install -yq autoconf \
+                           build-essential \
+                           curl \
+                           git \
+                           libffi-dev \
+                           libssl-dev \
+                           libtool \
+                           libxml2 \
+                           libxml2-dev \
+                           libxslt1.1 \
+                           libxslt1-dev \
+                           python \
+                           python-dev \
+                           vim-tiny \
+    && apt-get install -yq libtiff5 \
+                           libtiff5-dev \
+                           libfreetype6-dev \
+                           libjpeg62-turbo \
+                           libjpeg62-turbo-dev \
+                           liblcms2-2 \
+                           liblcms2-dev \
+                           libwebp6 \
+                           libwebp-dev \
+                           zlib1g \
+                           zlib1g-dev \
+    && curl -sSL https://bootstrap.pypa.io/get-pip.py | python \
+    && pip install git+https://github.com/scrapy/scrapy.git@1.5.0 \
+                   git+https://github.com/scrapy/scrapyd.git@1.2.0 \
+                   git+https://github.com/scrapy/scrapyd-client.git@v1.2.0a1 \
+                   git+https://github.com/scrapinghub/scrapy-splash.git \
+                   git+https://github.com/scrapinghub/scrapyrt.git \
+                   git+https://github.com/python-pillow/Pillow.git \
+    && curl -sSL https://github.com/scrapy/scrapy/raw/master/extras/scrapy_bash_completion -o /etc/bash_completion.d/scrapy_bash_completion \
+    && echo 'source /etc/bash_completion.d/scrapy_bash_completion' >> /root/.bashrc \
+    && apt-get install -yq cron \
+                           jq \
+                           netcat-openbsd \
+    && curl -sSL https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o ./wait-for-it.sh \
+    && chmod u+x ./wait-for-it.sh \
+    && pip install pytz python-dateutil boto3 scrapoxy editdistance GitPython redis \
+    && echo "source /root/.bash_aliases" >> /root/.bashrc \
+    && apt-get purge -y --auto-remove autoconf \
+                                      build-essential \
+                                      libffi-dev \
+                                      libssl-dev \
+                                      libtool \
+                                      libxml2-dev \
+                                      libxslt1-dev \
+                                      python-dev \
+    && apt-get purge -y --auto-remove libtiff5-dev \
+                                      libfreetype6-dev \
+                                      libjpeg62-turbo-dev \
+                                      liblcms2-dev \
+                                      libwebp-dev \
+                                      zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+VOLUME /etc/scrapyd/ /var/lib/scrapyd/
+EXPOSE 6800
+
 COPY ./scrapyd-schedule.tmp /etc/cron.d/scrapyd-schedule
 RUN chmod 0644 /etc/cron.d/scrapyd-schedule
 $COPY
@@ -130,10 +181,10 @@ if [ ! -z $scratch ] ; then
   fi
 fi
 
-if [ -z $(docker images -q scrapyd-deploy:scaff) ] ; then
-  RAND=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
-  docker run --name=$RAND scrapyd-deploy:latest true
-  TOCOMMIT=$(docker ps -aq --filter="name=$RAND")
-  docker commit -m "need faster" $TOCOMMIT scrapyd-deploy:scaff
-  docker rm $TOCOMMIT
-fi
+# if [ -z $(docker images -q scrapyd-deploy:scaff) ] ; then
+#   RAND=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+#   docker run --name=$RAND scrapyd-deploy:latest true
+#   TOCOMMIT=$(docker ps -aq --filter="name=$RAND")
+#   docker commit -m "need faster" $TOCOMMIT scrapyd-deploy:scaff
+#   docker rm $TOCOMMIT
+# fi
